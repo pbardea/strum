@@ -30,6 +30,7 @@ interface SavedProgression {
 
 // Pre-populated well-known progressions
 const PRESET_PROGRESSIONS: SavedProgression[] = [
+  // Classic & Basic
   {
     id: 'preset-1451',
     name: '1-4-5-1 (Classic)',
@@ -42,8 +43,19 @@ const PRESET_PROGRESSIONS: SavedProgression[] = [
     isPreset: true,
   },
   {
+    id: 'preset-145',
+    name: '1-4-5 (Three Chord)',
+    chords: [
+      { nashville: 1 as NashvilleNumber, bars: 4, beats: 0 },
+      { nashville: 4 as NashvilleNumber, bars: 4, beats: 0 },
+      { nashville: 5 as NashvilleNumber, bars: 4, beats: 0 },
+    ],
+    isPreset: true,
+  },
+  // Pop
+  {
     id: 'preset-1564',
-    name: '1-5-6-4 (Pop)',
+    name: '1-5-6-4 (Pop/Axis)',
     chords: [
       { nashville: 1 as NashvilleNumber, bars: 2, beats: 0 },
       { nashville: 5 as NashvilleNumber, bars: 2, beats: 0 },
@@ -54,7 +66,7 @@ const PRESET_PROGRESSIONS: SavedProgression[] = [
   },
   {
     id: 'preset-1645',
-    name: '1-6-4-5 (50s)',
+    name: '1-6-4-5 (50s Doo-Wop)',
     chords: [
       { nashville: 1 as NashvilleNumber, bars: 2, beats: 0 },
       { nashville: 6 as NashvilleNumber, bars: 2, beats: 0 },
@@ -65,7 +77,7 @@ const PRESET_PROGRESSIONS: SavedProgression[] = [
   },
   {
     id: 'preset-6415',
-    name: '6-4-1-5 (Minor Pop)',
+    name: '6-4-1-5 (Emotional)',
     chords: [
       { nashville: 6 as NashvilleNumber, bars: 2, beats: 0 },
       { nashville: 4 as NashvilleNumber, bars: 2, beats: 0 },
@@ -74,6 +86,18 @@ const PRESET_PROGRESSIONS: SavedProgression[] = [
     ],
     isPreset: true,
   },
+  {
+    id: 'preset-4156',
+    name: '4-1-5-6 (Lift)',
+    chords: [
+      { nashville: 4 as NashvilleNumber, bars: 2, beats: 0 },
+      { nashville: 1 as NashvilleNumber, bars: 2, beats: 0 },
+      { nashville: 5 as NashvilleNumber, bars: 2, beats: 0 },
+      { nashville: 6 as NashvilleNumber, bars: 2, beats: 0 },
+    ],
+    isPreset: true,
+  },
+  // Country & Folk
   {
     id: 'preset-1415',
     name: '1-4-1-5 (Country)',
@@ -86,6 +110,18 @@ const PRESET_PROGRESSIONS: SavedProgression[] = [
     isPreset: true,
   },
   {
+    id: 'preset-1545',
+    name: '1-5-4-5 (Folk)',
+    chords: [
+      { nashville: 1 as NashvilleNumber, bars: 2, beats: 0 },
+      { nashville: 5 as NashvilleNumber, bars: 2, beats: 0 },
+      { nashville: 4 as NashvilleNumber, bars: 2, beats: 0 },
+      { nashville: 5 as NashvilleNumber, bars: 2, beats: 0 },
+    ],
+    isPreset: true,
+  },
+  // Jazz
+  {
     id: 'preset-251',
     name: '2-5-1 (Jazz)',
     chords: [
@@ -96,6 +132,29 @@ const PRESET_PROGRESSIONS: SavedProgression[] = [
     isPreset: true,
   },
   {
+    id: 'preset-1625',
+    name: '1-6-2-5 (Jazz/Soul)',
+    chords: [
+      { nashville: 1 as NashvilleNumber, bars: 2, beats: 0 },
+      { nashville: 6 as NashvilleNumber, bars: 2, beats: 0 },
+      { nashville: 2 as NashvilleNumber, bars: 2, beats: 0 },
+      { nashville: 5 as NashvilleNumber, bars: 2, beats: 0 },
+    ],
+    isPreset: true,
+  },
+  {
+    id: 'preset-3625',
+    name: '3-6-2-5 (Rhythm Changes)',
+    chords: [
+      { nashville: 3 as NashvilleNumber, bars: 2, beats: 0 },
+      { nashville: 6 as NashvilleNumber, bars: 2, beats: 0 },
+      { nashville: 2 as NashvilleNumber, bars: 2, beats: 0 },
+      { nashville: 5 as NashvilleNumber, bars: 2, beats: 0 },
+    ],
+    isPreset: true,
+  },
+  // Blues
+  {
     id: 'preset-12bar',
     name: '12-Bar Blues',
     chords: [
@@ -104,6 +163,100 @@ const PRESET_PROGRESSIONS: SavedProgression[] = [
       { nashville: 1 as NashvilleNumber, bars: 2, beats: 0 },
       { nashville: 5 as NashvilleNumber, bars: 1, beats: 0 },
       { nashville: 4 as NashvilleNumber, bars: 1, beats: 0 },
+      { nashville: 1 as NashvilleNumber, bars: 2, beats: 0 },
+    ],
+    isPreset: true,
+  },
+  {
+    id: 'preset-8bar',
+    name: '8-Bar Blues',
+    chords: [
+      { nashville: 1 as NashvilleNumber, bars: 2, beats: 0 },
+      { nashville: 4 as NashvilleNumber, bars: 2, beats: 0 },
+      { nashville: 1 as NashvilleNumber, bars: 2, beats: 0 },
+      { nashville: 5 as NashvilleNumber, bars: 2, beats: 0 },
+    ],
+    isPreset: true,
+  },
+  // Rock
+  {
+    id: 'preset-1544',
+    name: '1-5-4-4 (Rock)',
+    chords: [
+      { nashville: 1 as NashvilleNumber, bars: 2, beats: 0 },
+      { nashville: 5 as NashvilleNumber, bars: 2, beats: 0 },
+      { nashville: 4 as NashvilleNumber, bars: 4, beats: 0 },
+    ],
+    isPreset: true,
+  },
+  {
+    id: 'preset-punk',
+    name: '1-4-5-5 (Punk)',
+    chords: [
+      { nashville: 1 as NashvilleNumber, bars: 2, beats: 0 },
+      { nashville: 4 as NashvilleNumber, bars: 2, beats: 0 },
+      { nashville: 5 as NashvilleNumber, bars: 4, beats: 0 },
+    ],
+    isPreset: true,
+  },
+  // Minor Key / Modal
+  {
+    id: 'preset-andalusian',
+    name: '6-5-4-3 (Andalusian)',
+    chords: [
+      { nashville: 6 as NashvilleNumber, bars: 2, beats: 0 },
+      { nashville: 5 as NashvilleNumber, bars: 2, beats: 0 },
+      { nashville: 4 as NashvilleNumber, bars: 2, beats: 0 },
+      { nashville: 3 as NashvilleNumber, bars: 2, beats: 0 },
+    ],
+    isPreset: true,
+  },
+  {
+    id: 'preset-6-4-5',
+    name: '6-4-5 (Dark)',
+    chords: [
+      { nashville: 6 as NashvilleNumber, bars: 4, beats: 0 },
+      { nashville: 4 as NashvilleNumber, bars: 2, beats: 0 },
+      { nashville: 5 as NashvilleNumber, bars: 2, beats: 0 },
+    ],
+    isPreset: true,
+  },
+  // Pachelbel & Canon-style
+  {
+    id: 'preset-canon',
+    name: '1-5-6-3-4-1-4-5 (Canon)',
+    chords: [
+      { nashville: 1 as NashvilleNumber, bars: 1, beats: 0 },
+      { nashville: 5 as NashvilleNumber, bars: 1, beats: 0 },
+      { nashville: 6 as NashvilleNumber, bars: 1, beats: 0 },
+      { nashville: 3 as NashvilleNumber, bars: 1, beats: 0 },
+      { nashville: 4 as NashvilleNumber, bars: 1, beats: 0 },
+      { nashville: 1 as NashvilleNumber, bars: 1, beats: 0 },
+      { nashville: 4 as NashvilleNumber, bars: 1, beats: 0 },
+      { nashville: 5 as NashvilleNumber, bars: 1, beats: 0 },
+    ],
+    isPreset: true,
+  },
+  // Reggae
+  {
+    id: 'preset-reggae',
+    name: '1-4-5-4 (Reggae)',
+    chords: [
+      { nashville: 1 as NashvilleNumber, bars: 2, beats: 0 },
+      { nashville: 4 as NashvilleNumber, bars: 2, beats: 0 },
+      { nashville: 5 as NashvilleNumber, bars: 2, beats: 0 },
+      { nashville: 4 as NashvilleNumber, bars: 2, beats: 0 },
+    ],
+    isPreset: true,
+  },
+  // Bossa Nova
+  {
+    id: 'preset-bossa',
+    name: '1-2-5-1 (Bossa)',
+    chords: [
+      { nashville: 1 as NashvilleNumber, bars: 2, beats: 0 },
+      { nashville: 2 as NashvilleNumber, bars: 2, beats: 0 },
+      { nashville: 5 as NashvilleNumber, bars: 2, beats: 0 },
       { nashville: 1 as NashvilleNumber, bars: 2, beats: 0 },
     ],
     isPreset: true,
