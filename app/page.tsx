@@ -204,7 +204,7 @@ const PRESET_PROGRESSIONS: SavedProgression[] = [
   // Minor Key / Modal
   {
     id: 'preset-andalusian',
-    name: '6-5-4-3maj (Andalusian)',
+    name: 'Andalusian Cadence',
     chords: [
       { nashville: 6 as NashvilleNumber, bars: 2, beats: 0 },
       { nashville: 5 as NashvilleNumber, bars: 2, beats: 0 },
@@ -226,7 +226,7 @@ const PRESET_PROGRESSIONS: SavedProgression[] = [
   // Pachelbel & Canon-style
   {
     id: 'preset-canon',
-    name: '1-5-6-3-4-1-4-5 (Canon)',
+    name: 'Canon in D (Pachelbel)',
     chords: [
       { nashville: 1 as NashvilleNumber, bars: 1, beats: 0 },
       { nashville: 5 as NashvilleNumber, bars: 1, beats: 0 },
@@ -281,7 +281,7 @@ const PRESET_PROGRESSIONS: SavedProgression[] = [
   },
   {
     id: 'preset-hotel',
-    name: '1-5maj-7-4maj-6-3-4-5maj (Hotel Intro)',
+    name: 'Hotel California (Eagles)',
     chords: [
       { nashville: 1 as NashvilleNumber, bars: 1, beats: 0 },
       { nashville: 5 as NashvilleNumber, bars: 1, beats: 0, quality: 'maj' },
@@ -296,7 +296,7 @@ const PRESET_PROGRESSIONS: SavedProgression[] = [
   },
   {
     id: 'preset-peaceful',
-    name: '1-5-4-1 (Peaceful Easy)',
+    name: 'Peaceful Easy Feeling (Eagles)',
     chords: [
       { nashville: 1 as NashvilleNumber, bars: 2, beats: 0 },
       { nashville: 5 as NashvilleNumber, bars: 2, beats: 0 },
@@ -307,7 +307,7 @@ const PRESET_PROGRESSIONS: SavedProgression[] = [
   },
   {
     id: 'preset-desperado',
-    name: '1-3-4-1 (Ballad)',
+    name: 'Desperado (Eagles)',
     chords: [
       { nashville: 1 as NashvilleNumber, bars: 2, beats: 0 },
       { nashville: 3 as NashvilleNumber, bars: 2, beats: 0 },
@@ -318,7 +318,7 @@ const PRESET_PROGRESSIONS: SavedProgression[] = [
   },
   {
     id: 'preset-yesterday',
-    name: '1-7dim-3-6-2-4-1 (Yesterday)',
+    name: 'Yesterday (Beatles)',
     chords: [
       { nashville: 1 as NashvilleNumber, bars: 2, beats: 0 },
       { nashville: 7 as NashvilleNumber, bars: 1, beats: 0 },
@@ -332,7 +332,7 @@ const PRESET_PROGRESSIONS: SavedProgression[] = [
   },
   {
     id: 'preset-letitbe',
-    name: '1-5-6-4 (Let It)',
+    name: 'Let It Be (Beatles)',
     chords: [
       { nashville: 1 as NashvilleNumber, bars: 2, beats: 0 },
       { nashville: 5 as NashvilleNumber, bars: 2, beats: 0 },
@@ -343,7 +343,7 @@ const PRESET_PROGRESSIONS: SavedProgression[] = [
   },
   {
     id: 'preset-twist',
-    name: '1-4-5-4 (Twist)',
+    name: 'Twist and Shout (Beatles)',
     chords: [
       { nashville: 1 as NashvilleNumber, bars: 2, beats: 0 },
       { nashville: 4 as NashvilleNumber, bars: 2, beats: 0 },
@@ -354,7 +354,7 @@ const PRESET_PROGRESSIONS: SavedProgression[] = [
   },
   {
     id: 'preset-hey',
-    name: '4-1-5-5 (Hey Anthem)',
+    name: 'Hey Jude (Beatles)',
     chords: [
       { nashville: 4 as NashvilleNumber, bars: 2, beats: 0 },
       { nashville: 1 as NashvilleNumber, bars: 2, beats: 0 },
@@ -375,7 +375,7 @@ const PRESET_PROGRESSIONS: SavedProgression[] = [
   },
   {
     id: 'preset-pride',
-    name: '1-2-4-4 (Pride)',
+    name: 'Pride (U2)',
     chords: [
       { nashville: 1 as NashvilleNumber, bars: 2, beats: 0 },
       { nashville: 2 as NashvilleNumber, bars: 2, beats: 0 },
@@ -385,7 +385,7 @@ const PRESET_PROGRESSIONS: SavedProgression[] = [
   },
   {
     id: 'preset-streets',
-    name: '1-6-4-5 (Streets)',
+    name: 'Where The Streets Have No Name (U2)',
     chords: [
       { nashville: 1 as NashvilleNumber, bars: 2, beats: 0 },
       { nashville: 6 as NashvilleNumber, bars: 2, beats: 0 },
@@ -396,7 +396,7 @@ const PRESET_PROGRESSIONS: SavedProgression[] = [
   },
   {
     id: 'preset-still',
-    name: '1-4-6-5 (Still Haven\'t)',
+    name: 'Still Haven\'t Found What I\'m Looking For (U2)',
     chords: [
       { nashville: 1 as NashvilleNumber, bars: 2, beats: 0 },
       { nashville: 4 as NashvilleNumber, bars: 2, beats: 0 },
@@ -407,7 +407,7 @@ const PRESET_PROGRESSIONS: SavedProgression[] = [
   },
   {
     id: 'preset-wish',
-    name: '6-4-1-5 (Wish)',
+    name: 'Wish You Were Here (Pink Floyd)',
     chords: [
       { nashville: 6 as NashvilleNumber, bars: 2, beats: 0 },
       { nashville: 4 as NashvilleNumber, bars: 2, beats: 0 },
@@ -418,7 +418,7 @@ const PRESET_PROGRESSIONS: SavedProgression[] = [
   },
   {
     id: 'preset-breathe',
-    name: '6-5-1-1 (Breathe)',
+    name: 'Breathe (Pink Floyd)',
     chords: [
       { nashville: 6 as NashvilleNumber, bars: 2, beats: 0 },
       { nashville: 5 as NashvilleNumber, bars: 2, beats: 0 },
@@ -428,7 +428,7 @@ const PRESET_PROGRESSIONS: SavedProgression[] = [
   },
   {
     id: 'preset-comfortably',
-    name: '6-1-4-1 (Comfortably)',
+    name: 'Comfortably Numb (Pink Floyd)',
     chords: [
       { nashville: 6 as NashvilleNumber, bars: 2, beats: 0 },
       { nashville: 1 as NashvilleNumber, bars: 2, beats: 0 },
@@ -439,7 +439,7 @@ const PRESET_PROGRESSIONS: SavedProgression[] = [
   },
   {
     id: 'preset-shine',
-    name: '6-3-6-5 (Shine On)',
+    name: 'Shine On You Crazy Diamond (Pink Floyd)',
     chords: [
       { nashville: 6 as NashvilleNumber, bars: 2, beats: 0 },
       { nashville: 3 as NashvilleNumber, bars: 2, beats: 0 },
@@ -450,7 +450,7 @@ const PRESET_PROGRESSIONS: SavedProgression[] = [
   },
   {
     id: 'preset-time',
-    name: '6-2-5-1 (Time)',
+    name: 'Time (Pink Floyd)',
     chords: [
       { nashville: 6 as NashvilleNumber, bars: 2, beats: 0 },
       { nashville: 2 as NashvilleNumber, bars: 2, beats: 0 },
