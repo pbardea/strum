@@ -427,6 +427,9 @@ export class AudioEngine {
     // Duration based on remaining bars - sustain for the full duration
     const chordDuration = `${durationBars}m`;
     
+    // Compensate for sample latency - trigger 50ms early
+    const adjustedTime = Math.max(0, time - 0.05);
+    
     // Play chord with strummed effect for guitar
     if (this.currentInstrumentType === 'clean-guitar') {
       // Quick strum - tight arpeggio
@@ -434,21 +437,21 @@ export class AudioEngine {
         const strumDelay = index * 0.002; // Ultra-tight strum
         if (this.instrument instanceof Tone.Sampler) {
           const noteName = Tone.Frequency(midiNotes[index], 'midi').toNote();
-          this.instrument.triggerAttackRelease(noteName, chordDuration, time + strumDelay);
+          this.instrument.triggerAttackRelease(noteName, chordDuration, adjustedTime + strumDelay);
         } else {
-          this.instrument.triggerAttackRelease(freq, chordDuration, time + strumDelay);
+          this.instrument.triggerAttackRelease(freq, chordDuration, adjustedTime + strumDelay);
         }
       });
     } else if (this.instrument instanceof Tone.Sampler) {
       // If using sampler, use note names
       const noteNames = midiNotes.map(note => Tone.Frequency(note, 'midi').toNote());
       noteNames.forEach((note, index) => {
-        this.instrument.triggerAttackRelease(note, chordDuration, time + (index * 0.002));
+        this.instrument.triggerAttackRelease(note, chordDuration, adjustedTime + (index * 0.002));
       });
     } else {
       // Regular synth
       frequencies.forEach((freq, index) => {
-        this.instrument.triggerAttackRelease(freq, chordDuration, time + (index * 0.002));
+        this.instrument.triggerAttackRelease(freq, chordDuration, adjustedTime + (index * 0.002));
       });
     }
   }
