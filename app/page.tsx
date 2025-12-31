@@ -1021,6 +1021,68 @@ export default function Home() {
           </div>
         </div>
 
+        {/* Settings Row */}
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-4">
+          <div>
+            <label className="block text-xs text-zinc-500 mb-1">Key</label>
+            <select
+              value={`${key}-${mode}`}
+              onChange={(e) => {
+                const [newKey, newMode] = e.target.value.split('-') as [Key, KeyMode];
+                setKey(newKey);
+                setMode(newMode);
+              }}
+              className="w-full px-3 py-2 bg-zinc-800 border border-zinc-700 rounded-lg text-white text-sm focus:outline-none focus:ring-1 focus:ring-amber-500"
+            >
+              {getAllKeys().map((k) => (
+                <optgroup key={k} label={k}>
+                  <option value={`${k}-major`}>{k} Major</option>
+                  <option value={`${k}-minor`}>{k} Minor</option>
+                </optgroup>
+              ))}
+            </select>
+          </div>
+
+          <div>
+            <label className="block text-xs text-zinc-500 mb-1">Tempo: {tempo} BPM</label>
+            <input
+              type="range"
+              min="60"
+              max="200"
+              value={tempo}
+              onChange={(e) => setTempo(parseInt(e.target.value))}
+              className="w-full h-2 bg-zinc-700 rounded-lg appearance-none cursor-pointer accent-amber-500 mt-2"
+            />
+          </div>
+
+          <div>
+            <label className="block text-xs text-zinc-500 mb-1">Instrument</label>
+            <select
+              value={instrument}
+              onChange={(e) => setInstrument(e.target.value as Instrument)}
+              className="w-full px-3 py-2 bg-zinc-800 border border-zinc-700 rounded-lg text-white text-sm focus:outline-none focus:ring-1 focus:ring-amber-500"
+              disabled={isPlaying}
+            >
+              <option value="pluck">Acoustic Guitar</option>
+              <option value="clean-guitar">Electric Guitar</option>
+              <option value="synth">Synth</option>
+            </select>
+          </div>
+
+          <div>
+            <label className="block text-xs text-zinc-500 mb-1">Strum Every</label>
+            <select
+              value={strumFrequency}
+              onChange={(e) => setStrumFrequency(parseInt(e.target.value) as StrumFrequency)}
+              className="w-full px-3 py-2 bg-zinc-800 border border-zinc-700 rounded-lg text-white text-sm focus:outline-none focus:ring-1 focus:ring-amber-500"
+            >
+              <option value={1}>1 Beat</option>
+              <option value={2}>2 Beats</option>
+              <option value={4}>4 Beats (Measure)</option>
+            </select>
+          </div>
+        </div>
+
         {/* Timeline Visualization */}
         <div className="mb-6 bg-zinc-800 rounded-lg p-4 border border-zinc-700">
           <div className="relative h-16 bg-zinc-900 rounded-lg overflow-hidden">
@@ -1277,68 +1339,6 @@ export default function Home() {
               )}
             </div>
           )}
-        </div>
-
-        {/* Settings Row */}
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-6">
-          <div>
-            <label className="block text-xs text-zinc-500 mb-1">Key</label>
-            <select
-              value={`${key}-${mode}`}
-              onChange={(e) => {
-                const [newKey, newMode] = e.target.value.split('-') as [Key, KeyMode];
-                setKey(newKey);
-                setMode(newMode);
-              }}
-              className="w-full px-3 py-2 bg-zinc-800 border border-zinc-700 rounded-lg text-white text-sm focus:outline-none focus:ring-1 focus:ring-amber-500"
-            >
-              {getAllKeys().map((k) => (
-                <optgroup key={k} label={k}>
-                  <option value={`${k}-major`}>{k} Major</option>
-                  <option value={`${k}-minor`}>{k} Minor</option>
-                </optgroup>
-              ))}
-            </select>
-          </div>
-
-          <div>
-            <label className="block text-xs text-zinc-500 mb-1">Tempo: {tempo} BPM</label>
-            <input
-              type="range"
-              min="60"
-              max="200"
-              value={tempo}
-              onChange={(e) => setTempo(parseInt(e.target.value))}
-              className="w-full h-2 bg-zinc-700 rounded-lg appearance-none cursor-pointer accent-amber-500 mt-2"
-            />
-          </div>
-
-          <div>
-            <label className="block text-xs text-zinc-500 mb-1">Instrument</label>
-            <select
-              value={instrument}
-              onChange={(e) => setInstrument(e.target.value as Instrument)}
-              className="w-full px-3 py-2 bg-zinc-800 border border-zinc-700 rounded-lg text-white text-sm focus:outline-none focus:ring-1 focus:ring-amber-500"
-              disabled={isPlaying}
-            >
-              <option value="pluck">Acoustic Guitar</option>
-              <option value="clean-guitar">Electric Guitar</option>
-              <option value="synth">Synth</option>
-            </select>
-          </div>
-
-          <div>
-            <label className="block text-xs text-zinc-500 mb-1">Strum Every</label>
-            <select
-              value={strumFrequency}
-              onChange={(e) => setStrumFrequency(parseInt(e.target.value) as StrumFrequency)}
-              className="w-full px-3 py-2 bg-zinc-800 border border-zinc-700 rounded-lg text-white text-sm focus:outline-none focus:ring-1 focus:ring-amber-500"
-            >
-              <option value={1}>1 Beat</option>
-              <option value={2}>2 Beats</option>
-              <option value={4}>4 Beats (Measure)</option>
-            </select>
-          </div>
         </div>
 
         {/* Chord Builder */}
