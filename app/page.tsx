@@ -5,6 +5,7 @@ import { AudioEngine, ChordEvent, Instrument, StrumFrequency } from '@/lib/audio
 import { getAllKeys, nashvilleToChord, formatNashville, getDiatonicQuality, type Key, type KeyMode, type NashvilleNumber, type ChordQuality } from '@/lib/music-theory';
 import ChordBuilder from '@/components/chord-builder';
 import Transport from '@/components/transport';
+import Fretboard from '@/components/fretboard';
 
 const STORAGE_KEY = 'strum-settings';
 const PROGRESSIONS_KEY = 'strum-progressions';
@@ -922,6 +923,11 @@ export default function Home() {
               />
             ))}
           </div>
+        </div>
+
+        {/* Pentatonic Scale Fretboard */}
+        <div className="mb-6">
+          <Fretboard keyRoot={key} mode={mode} />
         </div>
 
         {/* Progression Selector */}
