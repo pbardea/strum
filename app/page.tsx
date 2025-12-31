@@ -464,6 +464,11 @@ export default function Home() {
   };
 
   const handleSelectProgression = (progressionId: string) => {
+    // Auto-pause when selecting a new progression
+    if (isPlaying) {
+      handlePause();
+    }
+    
     const progression = allProgressions.find(p => p.id === progressionId);
     if (progression) {
       setChords(progression.chords);
@@ -702,12 +707,11 @@ export default function Home() {
               <button
                 key={prog.id}
                 onClick={() => handleSelectProgression(prog.id)}
-                disabled={isPlaying}
                 className={`relative px-3 py-2 text-xs rounded-lg transition-all text-left ${
                   currentProgressionId === prog.id
                     ? 'bg-amber-600 text-white'
                     : 'bg-zinc-700 hover:bg-zinc-600 text-zinc-300'
-                } ${isPlaying ? 'opacity-50 cursor-not-allowed' : ''}`}
+                }`}
               >
                 <span className="block truncate">{prog.name}</span>
                 {!prog.isPreset && currentProgressionId !== prog.id && (
