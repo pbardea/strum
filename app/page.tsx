@@ -933,6 +933,8 @@ export default function Home() {
             const chordInfo = nashvilleToChord(currentChord.nashville, key, mode, currentChord.quality);
             return (
               <Fretboard 
+                scaleRoot={key}
+                scaleMode={mode}
                 chordRoot={chordInfo.root as Key} 
                 chordQuality={chordInfo.quality} 
                 chordName={chordInfo.name}

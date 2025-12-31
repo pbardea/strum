@@ -1,8 +1,12 @@
 'use client';
 
-import { type Key, type ChordQuality } from '@/lib/music-theory';
+import { type Key, type KeyMode, type ChordQuality } from '@/lib/music-theory';
 
 interface FretboardProps {
+  // For pentatonic scale display
+  scaleRoot: Key;
+  scaleMode: KeyMode;
+  // For chord tone highlighting
   chordRoot: Key;
   chordQuality: ChordQuality;
   chordName: string;
@@ -16,8 +20,22 @@ const NUM_FRETS = 15;
 
 const CHROMATIC_NOTES = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B'];
 
+// Major pentatonic intervals from root: 1, 2, 3, 5, 6 (semitones: 0, 2, 4, 7, 9)
+const MAJOR_PENTATONIC = [0, 2, 4, 7, 9];
+// Minor pentatonic intervals from root: 1, b3, 4, 5, b7 (semitones: 0, 3, 5, 7, 10)
+const MINOR_PENTATONIC = [0, 3, 5, 7, 10];
+
 function getNoteIndex(key: Key): number {
   return CHROMATIC_NOTES.indexOf(key);
+}
+
+function isInPentatonic(noteMidi: number, scaleRoot: Key, scaleMode: KeyMode): boolean {
+  const rootIndex = getNoteIndex(scaleRoot);
+  const noteIndex = noteMidi % 12;
+  const interval = (noteIndex - rootIndex + 12) % 12;
+  
+  const pentatonic = scaleMode === 'minor' ? MINOR_PENTATONIC : MAJOR_PENTATONIC;
+  return pentatonic.includes(interval);
 }
 
 function getChordTone(noteMidi: number, chordRoot: Key, chordQuality: ChordQuality): {
@@ -54,7 +72,7 @@ function getChordTone(noteMidi: number, chordRoot: Key, chordQuality: ChordQuali
   return { isRoot, isThird, isFifth };
 }
 
-export default function Fretboard({ chordRoot, chordQuality, chordName }: FretboardProps) {
+export default function Fretboard({ scaleRoot, scaleMode, chordRoot, chordQuality, chordName }: FretboardProps) {
   const fretWidth = 100 / (NUM_FRETS + 1); // +1 for nut/open position
   
   // Fret markers (dots) at frets 3, 5, 7, 9, 12 (double), 15
@@ -68,7 +86,7 @@ export default function Fretboard({ chordRoot, chordQuality, chordName }: Fretbo
   return (
     <div className="bg-zinc-800 rounded-lg p-4 border border-zinc-700">
       <h3 className="text-sm font-medium text-zinc-400 mb-3">
-        <span className="text-amber-400">{chordName}</span> chord tones
+        {scaleRoot} {scaleMode === 'major' ? 'Major' : 'Minor'} Pentatonic — <span className="text-amber-400">{chordName}</span> highlighted
       </h3>
       
       <div className="relative overflow-x-auto">
@@ -155,9 +173,15 @@ export default function Fretboard({ chordRoot, chordQuality, chordName }: Fretbo
                     />
                   ))}
                   
-                  {/* Notes */}
+                  {/* Notes - only show pentatonic scale notes */}
                   {Array.from({ length: NUM_FRETS + 1 }).map((_, fret) => {
                     const noteMidi = openNote + fret;
+                    
+                    // Only show notes in the pentatonic scale
+                    if (!isInPentatonic(noteMidi, scaleRoot, scaleMode)) {
+                      return null;
+                    }
+                    
                     const { isRoot, isThird, isFifth } = getChordTone(noteMidi, chordRoot, chordQuality);
                     
                     let bgColor = 'bg-zinc-600';
@@ -217,7 +241,7 @@ export default function Fretboard({ chordRoot, chordQuality, chordName }: Fretbo
             </div>
             <div className="flex items-center gap-1">
               <div className="w-3 h-3 rounded-full bg-zinc-600" />
-              <span>Other notes</span>
+              <span>Pentatonic</span>
             </div>
           </div>
         </div>
