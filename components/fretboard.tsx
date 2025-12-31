@@ -21,7 +21,6 @@ function getNoteIndex(key: Key): number {
 }
 
 function getChordTone(noteMidi: number, chordRoot: Key, chordQuality: ChordQuality): {
-  isChordTone: boolean;
   isRoot: boolean;
   isThird: boolean;
   isFifth: boolean;
@@ -52,9 +51,7 @@ function getChordTone(noteMidi: number, chordRoot: Key, chordQuality: ChordQuali
   }
   const isFifth = interval === fifthInterval;
   
-  const isChordTone = isRoot || isThird || isFifth;
-  
-  return { isChordTone, isRoot, isThird, isFifth };
+  return { isRoot, isThird, isFifth };
 }
 
 export default function Fretboard({ chordRoot, chordQuality, chordName }: FretboardProps) {
@@ -161,33 +158,39 @@ export default function Fretboard({ chordRoot, chordQuality, chordName }: Fretbo
                   {/* Notes */}
                   {Array.from({ length: NUM_FRETS + 1 }).map((_, fret) => {
                     const noteMidi = openNote + fret;
-                    const { isChordTone, isRoot, isThird, isFifth } = getChordTone(noteMidi, chordRoot, chordQuality);
+                    const { isRoot, isThird, isFifth } = getChordTone(noteMidi, chordRoot, chordQuality);
                     
-                    if (!isChordTone) return null;
-                    
-                    let bgColor = 'bg-zinc-500';
-                    let textColor = 'text-white';
+                    let bgColor = 'bg-zinc-600';
+                    let textColor = 'text-zinc-400';
+                    let ringStyle = '';
                     
                     if (isRoot) {
                       bgColor = 'bg-emerald-500';
+                      textColor = 'text-white';
+                      ringStyle = 'ring-2 ring-emerald-300';
                     } else if (isThird) {
                       bgColor = 'bg-purple-500';
+                      textColor = 'text-white';
+                      ringStyle = 'ring-2 ring-purple-300';
                     } else if (isFifth) {
                       bgColor = 'bg-orange-500';
+                      textColor = 'text-white';
+                      ringStyle = 'ring-2 ring-orange-300';
                     }
                     
                     const noteName = CHROMATIC_NOTES[noteMidi % 12];
+                    const isChordTone = isRoot || isThird || isFifth;
                     
                     return (
                       <div
                         key={fret}
-                        className={`absolute w-5 h-5 rounded-full flex items-center justify-center text-[9px] font-bold ${bgColor} ${textColor}`}
+                        className={`absolute w-5 h-5 rounded-full flex items-center justify-center text-[9px] font-bold ${bgColor} ${textColor} ${ringStyle}`}
                         style={{
                           left: `calc(${(fret + 0.5) * fretWidth}% - 10px)`,
                           top: '50%',
                           transform: 'translateY(-50%)',
                         }}
-                        title={`${noteName} (fret ${fret}) - ${isRoot ? 'Root' : isThird ? thirdName : fifthName}`}
+                        title={`${noteName} (fret ${fret})${isChordTone ? ` - ${isRoot ? 'Root' : isThird ? thirdName : fifthName}` : ''}`}
                       >
                         {noteName}
                       </div>
@@ -201,16 +204,20 @@ export default function Fretboard({ chordRoot, chordQuality, chordName }: Fretbo
           {/* Legend */}
           <div className="flex gap-4 mt-3 text-xs text-zinc-400">
             <div className="flex items-center gap-1">
-              <div className="w-3 h-3 rounded-full bg-emerald-500" />
+              <div className="w-3 h-3 rounded-full bg-emerald-500 ring-1 ring-emerald-300" />
               <span>Root ({chordRoot})</span>
             </div>
             <div className="flex items-center gap-1">
-              <div className="w-3 h-3 rounded-full bg-purple-500" />
+              <div className="w-3 h-3 rounded-full bg-purple-500 ring-1 ring-purple-300" />
               <span>{thirdName}</span>
             </div>
             <div className="flex items-center gap-1">
-              <div className="w-3 h-3 rounded-full bg-orange-500" />
+              <div className="w-3 h-3 rounded-full bg-orange-500 ring-1 ring-orange-300" />
               <span>{fifthName}</span>
+            </div>
+            <div className="flex items-center gap-1">
+              <div className="w-3 h-3 rounded-full bg-zinc-600" />
+              <span>Other notes</span>
             </div>
           </div>
         </div>
