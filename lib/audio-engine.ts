@@ -1,10 +1,11 @@
 import * as Tone from 'tone';
-import { nashvilleToChord, chordToMidiNotes, type Key, type NashvilleNumber } from './music-theory';
+import { nashvilleToChord, chordToMidiNotes, type Key, type NashvilleNumber, type ChordQuality } from './music-theory';
 
 export interface ChordEvent {
   nashville: NashvilleNumber;
   bars: number;
   beats: number;
+  quality?: ChordQuality; // Optional quality override (e.g., 'maj' for 3maj)
 }
 
 export type Instrument = 'synth' | 'clean-guitar' | 'pluck';
@@ -367,11 +368,12 @@ export class AudioEngine {
       const measureOffset = beatOffset / 4; // Convert beats to measures (4/4 time)
       const startTime = `${measureOffset}m`;
       
-      console.warn(`[AudioEngine] Scheduling chord ${i} (nashville: ${chord.nashville}) at ${startTime}`);
+      console.warn(`[AudioEngine] Scheduling chord ${i} (nashville: ${chord.nashville}, quality: ${chord.quality || 'default'}) at ${startTime}`);
       
       // Capture loop variable for closure
       const chordIndex = i;
       const nashville = chord.nashville;
+      const qualityOverride = chord.quality; // Optional quality override (e.g., 'maj' for 3maj)
       
       // Schedule chord change callback (UI update)
       this.transport.schedule((time) => {
@@ -380,7 +382,7 @@ export class AudioEngine {
         
         setTimeout(() => {
           if (this.onChordChange) {
-            const chordName = this.getChordName(nashville);
+            const chordName = this.getChordName(nashville, qualityOverride);
             this.onChordChange(nashville, chordName, chordIndex);
           }
         }, 0);
@@ -396,7 +398,7 @@ export class AudioEngine {
         
         this.transport.schedule((time) => {
           console.warn(`[AudioEngine] Strumming chord ${chordIndex} at beat ${strumBeatOffset}`);
-          this.playChord(nashville, time, durationBeats / 4); // Convert beats to bars for duration
+          this.playChord(nashville, time, durationBeats / 4, qualityOverride); // Convert beats to bars for duration
         }, strumTime);
       }
       
@@ -441,8 +443,8 @@ export class AudioEngine {
     return `${bars}:${remainingBeats}:0`;
   }
 
-  private playChord(nashville: NashvilleNumber, time: number, durationBars: number = 1) {
-    const chord = nashvilleToChord(nashville, this.currentKey as Key);
+  private playChord(nashville: NashvilleNumber, time: number, durationBars: number = 1, qualityOverride?: ChordQuality) {
+    const chord = nashvilleToChord(nashville, this.currentKey as Key, qualityOverride);
     const midiNotes = chordToMidiNotes(chord, 3); // Lower octave for guitar
     
     // Convert MIDI notes to frequencies
@@ -493,8 +495,8 @@ export class AudioEngine {
     this.metronome.triggerAttackRelease(metronomeFreq, '64n', time);
   }
 
-  private getChordName(nashville: NashvilleNumber): string {
-    const chord = nashvilleToChord(nashville, this.currentKey as Key);
+  private getChordName(nashville: NashvilleNumber, qualityOverride?: ChordQuality): string {
+    const chord = nashvilleToChord(nashville, this.currentKey as Key, qualityOverride);
     return chord.name;
   }
 

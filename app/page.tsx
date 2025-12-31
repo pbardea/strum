@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useRef } from 'react';
 import { AudioEngine, ChordEvent, Instrument, StrumFrequency } from '@/lib/audio-engine';
-import { getAllKeys, nashvilleToChord, type Key, type NashvilleNumber } from '@/lib/music-theory';
+import { getAllKeys, nashvilleToChord, formatNashville, getDiatonicQuality, type Key, type NashvilleNumber, type ChordQuality } from '@/lib/music-theory';
 import ChordBuilder from '@/components/chord-builder';
 import Transport from '@/components/transport';
 
@@ -202,12 +202,12 @@ const PRESET_PROGRESSIONS: SavedProgression[] = [
   // Minor Key / Modal
   {
     id: 'preset-andalusian',
-    name: '6-5-4-3 (Andalusian)',
+    name: '6-5-4-3maj (Andalusian)',
     chords: [
       { nashville: 6 as NashvilleNumber, bars: 2, beats: 0 },
       { nashville: 5 as NashvilleNumber, bars: 2, beats: 0 },
       { nashville: 4 as NashvilleNumber, bars: 2, beats: 0 },
-      { nashville: 3 as NashvilleNumber, bars: 2, beats: 0 },
+      { nashville: 3 as NashvilleNumber, bars: 2, beats: 0, quality: 'maj' },
     ],
     isPreset: true,
   },
@@ -458,7 +458,7 @@ export default function Home() {
     setCurrentProgressionId(null); // Mark as custom/modified
     if (newChords.length > 0) {
       setCurrentChordIndex(0);
-      const firstChord = nashvilleToChord(newChords[0].nashville, key);
+      const firstChord = nashvilleToChord(newChords[0].nashville, key, newChords[0].quality);
       setCurrentChordName(firstChord.name);
     }
   };
@@ -474,7 +474,7 @@ export default function Home() {
       setChords(progression.chords);
       setCurrentProgressionId(progressionId);
       if (progression.chords.length > 0) {
-        const firstChord = nashvilleToChord(progression.chords[0].nashville, key);
+        const firstChord = nashvilleToChord(progression.chords[0].nashville, key, progression.chords[0].quality);
         setCurrentChordName(firstChord.name);
       }
     }
@@ -508,16 +508,17 @@ export default function Home() {
 
   // Calculate chord positions for timeline
   const getChordPositions = () => {
-    const positions: { chord: ChordEvent; chordInfo: ReturnType<typeof nashvilleToChord>; startPercent: number; widthPercent: number; index: number }[] = [];
+    const positions: { chord: ChordEvent; chordInfo: ReturnType<typeof nashvilleToChord>; nashvilleDisplay: string; startPercent: number; widthPercent: number; index: number }[] = [];
     let beatOffset = 0;
     
     chords.forEach((chord, index) => {
       const chordBeats = (chord.bars * 4) + chord.beats;
       const startPercent = (beatOffset / totalBeats) * 100;
       const widthPercent = (chordBeats / totalBeats) * 100;
-      const chordInfo = nashvilleToChord(chord.nashville, key);
+      const chordInfo = nashvilleToChord(chord.nashville, key, chord.quality);
+      const nashvilleDisplay = formatNashville(chord.nashville, chord.quality);
       
-      positions.push({ chord, chordInfo, startPercent, widthPercent, index });
+      positions.push({ chord, chordInfo, nashvilleDisplay, startPercent, widthPercent, index });
       beatOffset += chordBeats;
     });
     
@@ -550,11 +551,11 @@ export default function Home() {
           <div className="md:col-span-1 flex flex-col justify-center items-center py-4 bg-zinc-800 rounded-lg border border-zinc-700">
             <p className="text-xs text-zinc-500 mb-1">Current Chord</p>
             <p className={`text-4xl font-bold transition-colors ${isPlaying ? 'text-amber-400' : 'text-zinc-600'}`}>
-              {currentChordName || nashvilleToChord(chords[0]?.nashville || 1, key).name}
+              {currentChordName || nashvilleToChord(chords[0]?.nashville || 1, key, chords[0]?.quality).name}
             </p>
             {chords[currentChordIndex] && (
               <p className="text-xs text-zinc-500 mt-1">
-                Nashville: {chords[currentChordIndex].nashville}
+                Nashville: {formatNashville(chords[currentChordIndex].nashville, chords[currentChordIndex].quality)}
               </p>
             )}
           </div>
@@ -610,7 +611,7 @@ export default function Home() {
         <div className="mb-6 bg-zinc-800 rounded-lg p-4 border border-zinc-700">
           <div className="relative h-16 bg-zinc-900 rounded-lg overflow-hidden">
             {/* Chord segments */}
-            {getChordPositions().map(({ chord, chordInfo, startPercent, widthPercent, index }) => (
+            {getChordPositions().map(({ chord, chordInfo, nashvilleDisplay, startPercent, widthPercent, index }) => (
               <div
                 key={index}
                 className={`absolute top-0 h-full flex flex-col items-center justify-center border-r border-zinc-700 transition-colors ${
@@ -626,7 +627,7 @@ export default function Home() {
                 <span className={`text-lg font-bold ${
                   index === currentChordIndex && isPlaying ? 'text-amber-400' : 'text-zinc-300'
                 }`}>
-                  {chord.nashville}
+                  {nashvilleDisplay}
                 </span>
                 <span className={`text-xs ${
                   index === currentChordIndex && isPlaying ? 'text-amber-300' : 'text-zinc-500'

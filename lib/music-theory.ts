@@ -36,20 +36,38 @@ function getKeyIndex(key: Key): number {
 
 /**
  * Convert Nashville number to actual chord in a given key
+ * Optionally override the diatonic quality (e.g., 3maj instead of 3min)
  */
-export function nashvilleToChord(nashville: NashvilleNumber, key: Key): Chord {
+export function nashvilleToChord(nashville: NashvilleNumber, key: Key, qualityOverride?: ChordQuality): Chord {
   const keyIndex = getKeyIndex(key);
   const scaleDegree = nashville - 1; // Convert to 0-based index
   const semitones = MAJOR_SCALE_INTERVALS[scaleDegree];
   const chordRootIndex = (keyIndex + semitones) % 12;
   const chordRoot = CHROMATIC_NOTES[chordRootIndex];
-  const quality = DIATONIC_QUALITIES[nashville];
+  const quality = qualityOverride ?? DIATONIC_QUALITIES[nashville];
 
   return {
     root: chordRoot,
     quality,
     name: `${chordRoot}${quality === 'maj' ? '' : quality === 'min' ? 'm' : '°'}`,
   };
+}
+
+/**
+ * Format Nashville notation with quality suffix
+ */
+export function formatNashville(nashville: NashvilleNumber, quality?: ChordQuality): string {
+  if (!quality) return String(nashville);
+  const diatonic = DIATONIC_QUALITIES[nashville];
+  if (quality === diatonic) return String(nashville); // No suffix needed if it's the default
+  return `${nashville}${quality}`;
+}
+
+/**
+ * Get the diatonic (default) quality for a Nashville number
+ */
+export function getDiatonicQuality(nashville: NashvilleNumber): ChordQuality {
+  return DIATONIC_QUALITIES[nashville];
 }
 
 /**
