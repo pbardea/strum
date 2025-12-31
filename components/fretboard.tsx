@@ -175,48 +175,52 @@ export default function Fretboard({ scaleRoot, scaleMode, chordRoot, chordQualit
                     />
                   ))}
                   
-                  {/* Notes - only show pentatonic scale notes */}
+                  {/* Notes - show pentatonic + always show chord tones (dimmed if outside pentatonic) */}
                   {Array.from({ length: NUM_FRETS + 1 }).map((_, fret) => {
                     const noteMidi = openNote + fret;
+                    const inPentatonic = isInPentatonic(noteMidi, scaleRoot, scaleMode);
+                    const { isRoot, isThird, isFifth } = getChordTone(noteMidi, chordRoot, chordQuality);
+                    const isChordTone = isRoot || isThird || isFifth;
                     
-                    // Only show notes in the pentatonic scale
-                    if (!isInPentatonic(noteMidi, scaleRoot, scaleMode)) {
+                    // Show if in pentatonic OR if it's a chord tone
+                    if (!inPentatonic && !isChordTone) {
                       return null;
                     }
-                    
-                    const { isRoot, isThird, isFifth } = getChordTone(noteMidi, chordRoot, chordQuality);
                     
                     let bgColor = 'bg-zinc-600';
                     let textColor = 'text-zinc-400';
                     let ringStyle = '';
+                    let opacity = '';
                     
                     if (isRoot) {
                       bgColor = 'bg-emerald-500';
                       textColor = 'text-white';
-                      ringStyle = 'ring-2 ring-emerald-300';
+                      ringStyle = inPentatonic ? 'ring-2 ring-emerald-300' : '';
+                      opacity = inPentatonic ? '' : 'opacity-40';
                     } else if (isThird) {
                       bgColor = 'bg-purple-500';
                       textColor = 'text-white';
-                      ringStyle = 'ring-2 ring-purple-300';
+                      ringStyle = inPentatonic ? 'ring-2 ring-purple-300' : '';
+                      opacity = inPentatonic ? '' : 'opacity-40';
                     } else if (isFifth) {
                       bgColor = 'bg-orange-500';
                       textColor = 'text-white';
-                      ringStyle = 'ring-2 ring-orange-300';
+                      ringStyle = inPentatonic ? 'ring-2 ring-orange-300' : '';
+                      opacity = inPentatonic ? '' : 'opacity-40';
                     }
                     
                     const noteName = CHROMATIC_NOTES[noteMidi % 12];
-                    const isChordTone = isRoot || isThird || isFifth;
                     
                     return (
                       <div
                         key={fret}
-                        className={`absolute w-5 h-5 rounded-full flex items-center justify-center text-[9px] font-bold ${bgColor} ${textColor} ${ringStyle}`}
+                        className={`absolute w-5 h-5 rounded-full flex items-center justify-center text-[9px] font-bold ${bgColor} ${textColor} ${ringStyle} ${opacity}`}
                         style={{
                           left: `calc(${(fret + 0.5) * fretWidth}% - 10px)`,
                           top: '50%',
                           transform: 'translateY(-50%)',
                         }}
-                        title={`${noteName} (fret ${fret})${isChordTone ? ` - ${isRoot ? 'Root' : isThird ? thirdName : fifthName}` : ''}`}
+                        title={`${noteName} (fret ${fret})${isChordTone ? ` - ${isRoot ? 'Root' : isThird ? thirdName : fifthName}${!inPentatonic ? ' (outside pentatonic)' : ''}` : ''}`}
                       >
                         {noteName}
                       </div>
@@ -229,7 +233,7 @@ export default function Fretboard({ scaleRoot, scaleMode, chordRoot, chordQualit
           </div>
 
           {/* Legend */}
-          <div className="flex gap-4 mt-3 text-xs text-zinc-400">
+          <div className="flex flex-wrap gap-x-4 gap-y-1 mt-3 text-xs text-zinc-400">
             <div className="flex items-center gap-1">
               <div className="w-3 h-3 rounded-full bg-emerald-500 ring-1 ring-emerald-300" />
               <span>Root ({chordRoot})</span>
@@ -245,6 +249,10 @@ export default function Fretboard({ scaleRoot, scaleMode, chordRoot, chordQualit
             <div className="flex items-center gap-1">
               <div className="w-3 h-3 rounded-full bg-zinc-600" />
               <span>Pentatonic</span>
+            </div>
+            <div className="flex items-center gap-1">
+              <div className="w-3 h-3 rounded-full bg-emerald-500 opacity-40" />
+              <span>Outside pentatonic</span>
             </div>
           </div>
         </div>
