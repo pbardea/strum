@@ -144,8 +144,10 @@ export default function Fretboard({ scaleRoot, scaleMode, chordRoot, chordQualit
               ))}
             </div>
 
-            {/* Strings and notes */}
-            {OPEN_STRINGS.map((openNote, stringIndex) => (
+            {/* Strings and notes - reversed so high E is on top, low E on bottom */}
+            {[...OPEN_STRINGS].reverse().map((openNote, reversedIndex) => {
+              const stringIndex = OPEN_STRINGS.length - 1 - reversedIndex;
+              return (
               <div key={stringIndex} className="flex items-center relative">
                 {/* String name */}
                 <div className="w-6 text-[10px] text-zinc-500 text-center shrink-0">
@@ -222,7 +224,8 @@ export default function Fretboard({ scaleRoot, scaleMode, chordRoot, chordQualit
                   })}
                 </div>
               </div>
-            ))}
+            );
+            })}
           </div>
 
           {/* Legend */}
