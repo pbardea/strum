@@ -802,7 +802,7 @@ export default function Home() {
           <h1 className="text-4xl font-bold mb-1 bg-gradient-to-r from-amber-400 to-amber-600 bg-clip-text text-transparent">
             Strum
           </h1>
-          <p className="text-zinc-500 text-sm">Pentatonic Practice Companion</p>
+          <p className="text-zinc-500 text-sm">Pentatonic Practice Partner</p>
         </header>
 
         {/* Transport at Top */}
