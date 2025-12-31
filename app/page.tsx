@@ -2,11 +2,12 @@
 
 import { useState, useEffect, useRef } from 'react';
 import { AudioEngine, ChordEvent, Instrument, StrumFrequency } from '@/lib/audio-engine';
-import { getAllKeys, nashvilleToChord, type Key } from '@/lib/music-theory';
+import { getAllKeys, nashvilleToChord, type Key, type NashvilleNumber } from '@/lib/music-theory';
 import ChordBuilder from '@/components/chord-builder';
 import Transport from '@/components/transport';
 
 const STORAGE_KEY = 'strum-settings';
+const PROGRESSIONS_KEY = 'strum-progressions';
 
 interface StoredSettings {
   key: Key;
@@ -16,21 +17,107 @@ interface StoredSettings {
   strumFrequency: StrumFrequency;
   chordVolume: number;
   metronomeVolume: number;
+  currentProgressionId: string | null;
 }
+
+interface SavedProgression {
+  id: string;
+  name: string;
+  chords: ChordEvent[];
+  isPreset?: boolean;
+}
+
+// Pre-populated well-known progressions
+const PRESET_PROGRESSIONS: SavedProgression[] = [
+  {
+    id: 'preset-1451',
+    name: '1-4-5-1 (Classic)',
+    chords: [
+      { nashville: 1 as NashvilleNumber, bars: 2, beats: 0 },
+      { nashville: 4 as NashvilleNumber, bars: 2, beats: 0 },
+      { nashville: 5 as NashvilleNumber, bars: 2, beats: 0 },
+      { nashville: 1 as NashvilleNumber, bars: 2, beats: 0 },
+    ],
+    isPreset: true,
+  },
+  {
+    id: 'preset-1564',
+    name: '1-5-6-4 (Pop)',
+    chords: [
+      { nashville: 1 as NashvilleNumber, bars: 2, beats: 0 },
+      { nashville: 5 as NashvilleNumber, bars: 2, beats: 0 },
+      { nashville: 6 as NashvilleNumber, bars: 2, beats: 0 },
+      { nashville: 4 as NashvilleNumber, bars: 2, beats: 0 },
+    ],
+    isPreset: true,
+  },
+  {
+    id: 'preset-1645',
+    name: '1-6-4-5 (50s)',
+    chords: [
+      { nashville: 1 as NashvilleNumber, bars: 2, beats: 0 },
+      { nashville: 6 as NashvilleNumber, bars: 2, beats: 0 },
+      { nashville: 4 as NashvilleNumber, bars: 2, beats: 0 },
+      { nashville: 5 as NashvilleNumber, bars: 2, beats: 0 },
+    ],
+    isPreset: true,
+  },
+  {
+    id: 'preset-6415',
+    name: '6-4-1-5 (Minor Pop)',
+    chords: [
+      { nashville: 6 as NashvilleNumber, bars: 2, beats: 0 },
+      { nashville: 4 as NashvilleNumber, bars: 2, beats: 0 },
+      { nashville: 1 as NashvilleNumber, bars: 2, beats: 0 },
+      { nashville: 5 as NashvilleNumber, bars: 2, beats: 0 },
+    ],
+    isPreset: true,
+  },
+  {
+    id: 'preset-1415',
+    name: '1-4-1-5 (Country)',
+    chords: [
+      { nashville: 1 as NashvilleNumber, bars: 2, beats: 0 },
+      { nashville: 4 as NashvilleNumber, bars: 2, beats: 0 },
+      { nashville: 1 as NashvilleNumber, bars: 2, beats: 0 },
+      { nashville: 5 as NashvilleNumber, bars: 2, beats: 0 },
+    ],
+    isPreset: true,
+  },
+  {
+    id: 'preset-251',
+    name: '2-5-1 (Jazz)',
+    chords: [
+      { nashville: 2 as NashvilleNumber, bars: 2, beats: 0 },
+      { nashville: 5 as NashvilleNumber, bars: 2, beats: 0 },
+      { nashville: 1 as NashvilleNumber, bars: 4, beats: 0 },
+    ],
+    isPreset: true,
+  },
+  {
+    id: 'preset-12bar',
+    name: '12-Bar Blues',
+    chords: [
+      { nashville: 1 as NashvilleNumber, bars: 4, beats: 0 },
+      { nashville: 4 as NashvilleNumber, bars: 2, beats: 0 },
+      { nashville: 1 as NashvilleNumber, bars: 2, beats: 0 },
+      { nashville: 5 as NashvilleNumber, bars: 1, beats: 0 },
+      { nashville: 4 as NashvilleNumber, bars: 1, beats: 0 },
+      { nashville: 1 as NashvilleNumber, bars: 2, beats: 0 },
+    ],
+    isPreset: true,
+  },
+];
 
 const defaultSettings: StoredSettings = {
   key: 'C',
-  chords: [
-    { nashville: 1, bars: 2, beats: 0 },
-    { nashville: 4, bars: 2, beats: 0 },
-    { nashville: 5, bars: 2, beats: 0 },
-    { nashville: 1, bars: 2, beats: 0 },
-  ],
+  chords: PRESET_PROGRESSIONS[0].chords,
   tempo: 120,
-  instrument: 'pluck', // Default to acoustic guitar
+  instrument: 'pluck',
   strumFrequency: 4,
   chordVolume: 80,
   metronomeVolume: 50,
+  currentProgressionId: PRESET_PROGRESSIONS[0].id,
 };
 
 function loadSettings(): StoredSettings {
@@ -57,6 +144,28 @@ function saveSettings(settings: Partial<StoredSettings>) {
   }
 }
 
+function loadSavedProgressions(): SavedProgression[] {
+  if (typeof window === 'undefined') return [];
+  try {
+    const stored = localStorage.getItem(PROGRESSIONS_KEY);
+    if (stored) {
+      return JSON.parse(stored);
+    }
+  } catch (e) {
+    console.warn('Failed to load progressions from localStorage:', e);
+  }
+  return [];
+}
+
+function saveSavedProgressions(progressions: SavedProgression[]) {
+  if (typeof window === 'undefined') return;
+  try {
+    localStorage.setItem(PROGRESSIONS_KEY, JSON.stringify(progressions));
+  } catch (e) {
+    console.warn('Failed to save progressions to localStorage:', e);
+  }
+}
+
 export default function Home() {
   const [isLoaded, setIsLoaded] = useState(false);
   const [key, setKey] = useState<Key>(defaultSettings.key);
@@ -70,11 +179,20 @@ export default function Home() {
   const [currentChordIndex, setCurrentChordIndex] = useState(0);
   const [currentChordName, setCurrentChordName] = useState('');
   const [progress, setProgress] = useState(0);
+  
+  // Progression management
+  const [savedProgressions, setSavedProgressions] = useState<SavedProgression[]>([]);
+  const [currentProgressionId, setCurrentProgressionId] = useState<string | null>(defaultSettings.currentProgressionId);
+  const [newProgressionName, setNewProgressionName] = useState('');
+  const [showSaveDialog, setShowSaveDialog] = useState(false);
 
   const audioEngineRef = useRef<AudioEngine | null>(null);
 
   // Calculate total beats for timeline
   const totalBeats = chords.reduce((sum, chord) => sum + (chord.bars * 4) + chord.beats, 0);
+
+  // All progressions (presets + saved)
+  const allProgressions = [...PRESET_PROGRESSIONS, ...savedProgressions];
 
   // Load settings from localStorage on mount
   useEffect(() => {
@@ -86,6 +204,8 @@ export default function Home() {
     setStrumFrequency(settings.strumFrequency);
     setChordVolume(settings.chordVolume);
     setMetronomeVolume(settings.metronomeVolume);
+    setCurrentProgressionId(settings.currentProgressionId);
+    setSavedProgressions(loadSavedProgressions());
     setIsLoaded(true);
   }, []);
 
@@ -99,9 +219,7 @@ export default function Home() {
       setCurrentChordIndex(index);
     });
 
-    engine.setBeatChangeCallback(() => {
-      // Visual beat indicator handled by progress
-    });
+    engine.setBeatChangeCallback(() => {});
 
     engine.setProgressChangeCallback((prog) => {
       setProgress(prog);
@@ -117,9 +235,9 @@ export default function Home() {
     if (audioEngineRef.current && isLoaded) {
       audioEngineRef.current.setKey(key);
       audioEngineRef.current.setChordProgression(chords);
-      saveSettings({ key, chords });
+      saveSettings({ key, chords, currentProgressionId });
     }
-  }, [key, chords, isLoaded]);
+  }, [key, chords, currentProgressionId, isLoaded]);
 
   useEffect(() => {
     if (audioEngineRef.current && isLoaded) {
@@ -173,10 +291,49 @@ export default function Home() {
 
   const handleChordChange = (newChords: ChordEvent[]) => {
     setChords(newChords);
+    setCurrentProgressionId(null); // Mark as custom/modified
     if (newChords.length > 0) {
       setCurrentChordIndex(0);
       const firstChord = nashvilleToChord(newChords[0].nashville, key);
       setCurrentChordName(firstChord.name);
+    }
+  };
+
+  const handleSelectProgression = (progressionId: string) => {
+    const progression = allProgressions.find(p => p.id === progressionId);
+    if (progression) {
+      setChords(progression.chords);
+      setCurrentProgressionId(progressionId);
+      if (progression.chords.length > 0) {
+        const firstChord = nashvilleToChord(progression.chords[0].nashville, key);
+        setCurrentChordName(firstChord.name);
+      }
+    }
+  };
+
+  const handleSaveProgression = () => {
+    if (!newProgressionName.trim()) return;
+    
+    const newProgression: SavedProgression = {
+      id: `custom-${Date.now()}`,
+      name: newProgressionName.trim(),
+      chords: [...chords],
+    };
+    
+    const updated = [...savedProgressions, newProgression];
+    setSavedProgressions(updated);
+    saveSavedProgressions(updated);
+    setCurrentProgressionId(newProgression.id);
+    setNewProgressionName('');
+    setShowSaveDialog(false);
+  };
+
+  const handleDeleteProgression = (progressionId: string) => {
+    const updated = savedProgressions.filter(p => p.id !== progressionId);
+    setSavedProgressions(updated);
+    saveSavedProgressions(updated);
+    if (currentProgressionId === progressionId) {
+      setCurrentProgressionId(null);
     }
   };
 
@@ -197,6 +354,10 @@ export default function Home() {
     
     return positions;
   };
+
+  const currentProgressionName = currentProgressionId 
+    ? allProgressions.find(p => p.id === currentProgressionId)?.name 
+    : 'Custom';
 
   return (
     <div className="min-h-screen bg-zinc-900 text-white">
@@ -233,32 +394,32 @@ export default function Home() {
           <div className="md:col-span-2 bg-zinc-800 rounded-lg p-3 border border-zinc-700">
             <p className="text-xs text-zinc-400 font-medium mb-2">Volume</p>
             <div className="grid grid-cols-2 gap-3">
-            <div>
-              <label className="block text-xs text-zinc-500 mb-1">
-                🎸 Chords: {chordVolume}%
-              </label>
-              <input
-                type="range"
-                min="0"
-                max="100"
-                value={chordVolume}
-                onChange={(e) => setChordVolume(parseInt(e.target.value))}
-                className="w-full h-1.5 bg-zinc-700 rounded-lg appearance-none cursor-pointer accent-amber-500"
-              />
-            </div>
-            <div>
-              <label className="block text-xs text-zinc-500 mb-1">
-                🎵 Metronome: {metronomeVolume}%
-              </label>
-              <input
-                type="range"
-                min="0"
-                max="100"
-                value={metronomeVolume}
-                onChange={(e) => setMetronomeVolume(parseInt(e.target.value))}
-                className="w-full h-1.5 bg-zinc-700 rounded-lg appearance-none cursor-pointer accent-amber-500"
-              />
-            </div>
+              <div>
+                <label className="block text-xs text-zinc-500 mb-1">
+                  🎸 Chords: {chordVolume}%
+                </label>
+                <input
+                  type="range"
+                  min="0"
+                  max="100"
+                  value={chordVolume}
+                  onChange={(e) => setChordVolume(parseInt(e.target.value))}
+                  className="w-full h-1.5 bg-zinc-700 rounded-lg appearance-none cursor-pointer accent-amber-500"
+                />
+              </div>
+              <div>
+                <label className="block text-xs text-zinc-500 mb-1">
+                  🎵 Metronome: {metronomeVolume}%
+                </label>
+                <input
+                  type="range"
+                  min="0"
+                  max="100"
+                  value={metronomeVolume}
+                  onChange={(e) => setMetronomeVolume(parseInt(e.target.value))}
+                  className="w-full h-1.5 bg-zinc-700 rounded-lg appearance-none cursor-pointer accent-amber-500"
+                />
+              </div>
             </div>
           </div>
         </div>
@@ -267,10 +428,10 @@ export default function Home() {
         <div className="mb-6 bg-zinc-800 rounded-lg p-4 border border-zinc-700">
           <div className="relative h-16 bg-zinc-900 rounded-lg overflow-hidden">
             {/* Chord segments */}
-            {getChordPositions().map(({ chordInfo, startPercent, widthPercent, index }) => (
+            {getChordPositions().map(({ chord, chordInfo, startPercent, widthPercent, index }) => (
               <div
                 key={index}
-                className={`absolute top-0 h-full flex items-center justify-center border-r border-zinc-700 transition-colors ${
+                className={`absolute top-0 h-full flex flex-col items-center justify-center border-r border-zinc-700 transition-colors ${
                   index === currentChordIndex && isPlaying
                     ? 'bg-amber-500/30'
                     : 'bg-zinc-800'
@@ -280,10 +441,15 @@ export default function Home() {
                   width: `${widthPercent}%`,
                 }}
               >
-                <span className={`text-sm font-semibold ${
-                  index === currentChordIndex && isPlaying ? 'text-amber-400' : 'text-zinc-400'
+                <span className={`text-lg font-bold ${
+                  index === currentChordIndex && isPlaying ? 'text-amber-400' : 'text-zinc-300'
                 }`}>
-                  {chordInfo.name}
+                  {chord.nashville}
+                </span>
+                <span className={`text-xs ${
+                  index === currentChordIndex && isPlaying ? 'text-amber-300' : 'text-zinc-500'
+                }`}>
+                  ({chordInfo.name})
                 </span>
               </div>
             ))}
@@ -307,6 +473,84 @@ export default function Home() {
                 style={{ left: `${(i / totalBeats) * 100}%` }}
               />
             ))}
+          </div>
+        </div>
+
+        {/* Progression Selector */}
+        <div className="mb-6 bg-zinc-800 rounded-lg p-4 border border-zinc-700">
+          <div className="flex items-center justify-between mb-3">
+            <p className="text-xs text-zinc-400 font-medium">Progression</p>
+            <div className="flex gap-2">
+              <button
+                onClick={() => setShowSaveDialog(true)}
+                className="px-3 py-1 text-xs bg-zinc-700 hover:bg-zinc-600 rounded-lg transition-colors"
+                disabled={isPlaying}
+              >
+                Save As...
+              </button>
+            </div>
+          </div>
+          
+          {/* Save Dialog */}
+          {showSaveDialog && (
+            <div className="mb-3 p-3 bg-zinc-900 rounded-lg border border-zinc-600">
+              <input
+                type="text"
+                value={newProgressionName}
+                onChange={(e) => setNewProgressionName(e.target.value)}
+                placeholder="Progression name..."
+                className="w-full px-3 py-2 bg-zinc-800 border border-zinc-600 rounded-lg text-white text-sm mb-2 focus:outline-none focus:ring-1 focus:ring-amber-500"
+                autoFocus
+              />
+              <div className="flex gap-2">
+                <button
+                  onClick={handleSaveProgression}
+                  className="px-3 py-1 text-xs bg-amber-600 hover:bg-amber-500 rounded-lg transition-colors"
+                >
+                  Save
+                </button>
+                <button
+                  onClick={() => { setShowSaveDialog(false); setNewProgressionName(''); }}
+                  className="px-3 py-1 text-xs bg-zinc-700 hover:bg-zinc-600 rounded-lg transition-colors"
+                >
+                  Cancel
+                </button>
+              </div>
+            </div>
+          )}
+          
+          {/* Progression List */}
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
+            {allProgressions.map((prog) => (
+              <button
+                key={prog.id}
+                onClick={() => handleSelectProgression(prog.id)}
+                disabled={isPlaying}
+                className={`relative px-3 py-2 text-xs rounded-lg transition-all text-left ${
+                  currentProgressionId === prog.id
+                    ? 'bg-amber-600 text-white'
+                    : 'bg-zinc-700 hover:bg-zinc-600 text-zinc-300'
+                } ${isPlaying ? 'opacity-50 cursor-not-allowed' : ''}`}
+              >
+                <span className="block truncate">{prog.name}</span>
+                {!prog.isPreset && currentProgressionId !== prog.id && (
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      handleDeleteProgression(prog.id);
+                    }}
+                    className="absolute top-1 right-1 w-4 h-4 flex items-center justify-center text-zinc-400 hover:text-red-400 rounded"
+                  >
+                    ×
+                  </button>
+                )}
+              </button>
+            ))}
+            {currentProgressionId === null && (
+              <div className="px-3 py-2 text-xs rounded-lg bg-zinc-600 text-amber-400 border border-amber-500/50">
+                Custom (unsaved)
+              </div>
+            )}
           </div>
         </div>
 
