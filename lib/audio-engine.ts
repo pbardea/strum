@@ -237,6 +237,7 @@ export class AudioEngine {
             'F#4': 'Fs4.mp3',
           },
           baseUrl: baseUrl,
+          attack: 0, // Instant attack - no fade in
           release: 6, // Long release for sustained ringing
           onload: () => {
             console.log('Electric guitar samples loaded');
@@ -291,6 +292,7 @@ export class AudioEngine {
             'G4': 'G4.mp3',
           },
           baseUrl: acousticBaseUrl,
+          attack: 0, // Instant attack - no fade in
           release: 6, // Long release for sustained ringing
           onload: () => {
             console.log('Acoustic guitar samples loaded');
@@ -449,8 +451,9 @@ export class AudioEngine {
     // Duration based on remaining bars - sustain for the full duration
     const chordDuration = `${durationBars}m`;
     
-    // Compensate for sample latency - trigger 50ms early
-    const adjustedTime = Math.max(0, time - 0.05);
+    // Compensate for sample attack/latency - trigger 100ms early
+    // Samples often have ~50-100ms of attack time before the main sound
+    const adjustedTime = Math.max(0, time - 0.1);
     
     // Play bass - root note in low octave
     const bassNote = `${chord.root}1`; // Octave 1 for deep bass
