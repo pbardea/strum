@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect, useRef } from 'react';
-import { AudioEngine, ChordEvent, Instrument } from '@/lib/audio-engine';
+import { AudioEngine, ChordEvent, Instrument, StrumFrequency } from '@/lib/audio-engine';
 import { getAllKeys, nashvilleToChord, type Key } from '@/lib/music-theory';
 import ChordBuilder from '@/components/chord-builder';
 import Transport from '@/components/transport';
@@ -16,6 +16,7 @@ export default function Home() {
   ]);
   const [tempo, setTempo] = useState(120);
   const [instrument, setInstrument] = useState<Instrument>('clean-guitar');
+  const [strumFrequency, setStrumFrequency] = useState<StrumFrequency>(4);
   const [isPlaying, setIsPlaying] = useState(false);
   const [chordVolume, setChordVolume] = useState(80);
   const [metronomeVolume, setMetronomeVolume] = useState(50);
@@ -25,8 +26,8 @@ export default function Home() {
 
   const audioEngineRef = useRef<AudioEngine | null>(null);
 
-  // Calculate total bars for timeline
-  const totalBars = chords.reduce((sum, chord) => sum + chord.bars, 0);
+  // Calculate total beats for timeline
+  const totalBeats = chords.reduce((sum, chord) => sum + (chord.bars * 4) + chord.beats, 0);
 
   useEffect(() => {
     // Initialize audio engine
@@ -72,6 +73,12 @@ export default function Home() {
 
   useEffect(() => {
     if (audioEngineRef.current) {
+      audioEngineRef.current.setStrumFrequency(strumFrequency);
+    }
+  }, [strumFrequency]);
+
+  useEffect(() => {
+    if (audioEngineRef.current) {
       audioEngineRef.current.setInstrumentVolume(chordVolume);
     }
   }, [chordVolume]);
@@ -108,15 +115,21 @@ export default function Home() {
 
   // Calculate chord positions for timeline
   const getChordPositions = () => {
-    let offset = 0;
-    return chords.map((chord, index) => {
-      const position = { start: offset / totalBars, width: chord.bars / totalBars, index };
-      offset += chord.bars;
-      return position;
+    const positions: { chord: ChordEvent; chordInfo: ReturnType<typeof nashvilleToChord>; startPercent: number; widthPercent: number; index: number }[] = [];
+    let beatOffset = 0;
+    
+    chords.forEach((chord, index) => {
+      const chordBeats = (chord.bars * 4) + chord.beats;
+      const startPercent = (beatOffset / totalBeats) * 100;
+      const widthPercent = (chordBeats / totalBeats) * 100;
+      const chordInfo = nashvilleToChord(chord.nashville, key);
+      
+      positions.push({ chord, chordInfo, startPercent, widthPercent, index });
+      beatOffset += chordBeats;
     });
+    
+    return positions;
   };
-
-  const chordPositions = getChordPositions();
 
   return (
     <div className="min-h-screen bg-zinc-900 text-white">
@@ -129,193 +142,164 @@ export default function Home() {
           <p className="text-zinc-500 text-sm">Pentatonic Practice Companion</p>
         </header>
 
-        {/* Play/Pause at Top */}
+        {/* Transport at Top */}
         <div className="flex justify-center mb-6">
           <Transport isPlaying={isPlaying} onPlay={handlePlay} onPause={handlePause} />
         </div>
 
         {/* Current Chord + Volume Controls Row */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
-          {/* Volume Controls - Compact */}
-          <div className="bg-zinc-800/50 rounded-lg p-3 border border-zinc-700/50">
-            <div className="flex items-center gap-2 mb-1">
-              <span className="text-xs">🎸</span>
-              <input
-                type="range"
-                min="0"
-                max="100"
-                value={chordVolume}
-                onChange={(e) => setChordVolume(parseInt(e.target.value))}
-                className="flex-1 h-1.5 bg-zinc-700 rounded-lg appearance-none cursor-pointer accent-amber-500"
-              />
-              <span className="text-xs text-zinc-500 w-8">{chordVolume}%</span>
-            </div>
-            <div className="flex items-center gap-2">
-              <span className="text-xs">🥁</span>
-              <input
-                type="range"
-                min="0"
-                max="100"
-                value={metronomeVolume}
-                onChange={(e) => setMetronomeVolume(parseInt(e.target.value))}
-                className="flex-1 h-1.5 bg-zinc-700 rounded-lg appearance-none cursor-pointer accent-amber-500"
-              />
-              <span className="text-xs text-zinc-500 w-8">{metronomeVolume}%</span>
-            </div>
-          </div>
-
-          {/* Current Chord Display - Center */}
-          <div className="bg-zinc-800 rounded-lg p-4 border-2 border-amber-500/50 shadow-lg shadow-amber-500/10 text-center">
+          {/* Current Chord Display */}
+          <div className="md:col-span-1 flex flex-col justify-center items-center py-4 bg-zinc-800 rounded-lg border border-zinc-700">
             <p className="text-xs text-zinc-500 mb-1">Current Chord</p>
-            <p className="text-3xl font-bold text-amber-400">
-              {isPlaying && currentChordName ? currentChordName : '—'}
+            <p className={`text-4xl font-bold transition-colors ${isPlaying ? 'text-amber-400' : 'text-zinc-600'}`}>
+              {currentChordName || nashvilleToChord(chords[0]?.nashville || 1, key).name}
             </p>
-            {isPlaying && chords[currentChordIndex]?.nashville && (
+            {chords[currentChordIndex] && (
               <p className="text-xs text-zinc-500 mt-1">
                 Nashville: {chords[currentChordIndex].nashville}
               </p>
             )}
           </div>
 
-          {/* Settings Summary - Compact */}
-          <div className="bg-zinc-800/50 rounded-lg p-3 border border-zinc-700/50 text-sm">
-            <div className="flex justify-between items-center mb-1">
-              <span className="text-zinc-500">Key:</span>
-              <span className="text-amber-400 font-medium">{key}</span>
+          {/* Volume Controls - Compact */}
+          <div className="md:col-span-2 grid grid-cols-2 gap-3 bg-zinc-800 rounded-lg p-3 border border-zinc-700">
+            <div>
+              <label className="block text-xs text-zinc-500 mb-1">
+                🎸 Chords: {chordVolume}%
+              </label>
+              <input
+                type="range"
+                min="0"
+                max="100"
+                value={chordVolume}
+                onChange={(e) => setChordVolume(parseInt(e.target.value))}
+                className="w-full h-1.5 bg-zinc-700 rounded-lg appearance-none cursor-pointer accent-amber-500"
+              />
             </div>
-            <div className="flex justify-between items-center mb-1">
-              <span className="text-zinc-500">Tempo:</span>
-              <span className="text-amber-400 font-medium">{tempo} BPM</span>
-            </div>
-            <div className="flex justify-between items-center">
-              <span className="text-zinc-500">Bars:</span>
-              <span className="text-amber-400 font-medium">{totalBars}</span>
+            <div>
+              <label className="block text-xs text-zinc-500 mb-1">
+                🎵 Metronome: {metronomeVolume}%
+              </label>
+              <input
+                type="range"
+                min="0"
+                max="100"
+                value={metronomeVolume}
+                onChange={(e) => setMetronomeVolume(parseInt(e.target.value))}
+                className="w-full h-1.5 bg-zinc-700 rounded-lg appearance-none cursor-pointer accent-amber-500"
+              />
             </div>
           </div>
         </div>
 
         {/* Timeline Visualization */}
-        <div className="bg-zinc-800 rounded-lg p-4 border border-zinc-700 mb-6">
-          <div className="relative h-16">
-            {/* Chord blocks */}
-            <div className="absolute inset-0 flex">
-              {chordPositions.map((pos, index) => {
-                const chordInfo = nashvilleToChord(chords[index].nashville, key);
-                const isActive = isPlaying && index === currentChordIndex;
-                return (
-                  <div
-                    key={index}
-                    className={`
-                      relative h-full border-r border-zinc-600 last:border-r-0
-                      transition-all duration-150
-                      ${isActive ? 'bg-amber-500/30' : 'bg-zinc-700/30'}
-                    `}
-                    style={{ width: `${pos.width * 100}%` }}
-                  >
-                    <div className="absolute inset-0 flex flex-col items-center justify-center">
-                      <span className={`text-lg font-bold ${isActive ? 'text-amber-400' : 'text-zinc-400'}`}>
-                        {chordInfo.name}
-                      </span>
-                      <span className="text-xs text-zinc-500">
-                        {chords[index].bars} bar{chords[index].bars > 1 ? 's' : ''}
-                      </span>
-                    </div>
-                    {/* Measure dividers */}
-                    {chords[index].bars > 1 && (
-                      <div className="absolute inset-0 flex">
-                        {Array.from({ length: chords[index].bars - 1 }).map((_, i) => (
-                          <div
-                            key={i}
-                            className="border-r border-zinc-600/50"
-                            style={{ width: `${100 / chords[index].bars}%` }}
-                          />
-                        ))}
-                      </div>
-                    )}
-                  </div>
-                );
-              })}
-            </div>
+        <div className="mb-6 bg-zinc-800 rounded-lg p-4 border border-zinc-700">
+          <div className="relative h-16 bg-zinc-900 rounded-lg overflow-hidden">
+            {/* Chord segments */}
+            {getChordPositions().map(({ chordInfo, startPercent, widthPercent, index }) => (
+              <div
+                key={index}
+                className={`absolute top-0 h-full flex items-center justify-center border-r border-zinc-700 transition-colors ${
+                  index === currentChordIndex && isPlaying
+                    ? 'bg-amber-500/30'
+                    : 'bg-zinc-800'
+                }`}
+                style={{
+                  left: `${startPercent}%`,
+                  width: `${widthPercent}%`,
+                }}
+              >
+                <span className={`text-sm font-semibold ${
+                  index === currentChordIndex && isPlaying ? 'text-amber-400' : 'text-zinc-400'
+                }`}>
+                  {chordInfo.name}
+                </span>
+              </div>
+            ))}
             
             {/* Playhead cursor */}
-            {isPlaying && (
-              <div
-                className="absolute top-0 bottom-0 w-0.5 bg-amber-400 shadow-lg shadow-amber-400/50 z-10 transition-all duration-75"
-                style={{ left: `${progress * 100}%` }}
-              >
-                <div className="absolute -top-1 left-1/2 -translate-x-1/2 w-2 h-2 bg-amber-400 rounded-full" />
-                <div className="absolute -bottom-1 left-1/2 -translate-x-1/2 w-2 h-2 bg-amber-400 rounded-full" />
-              </div>
-            )}
+            <div
+              className="absolute top-0 h-full w-0.5 bg-amber-500 shadow-lg shadow-amber-500/50 transition-all duration-75"
+              style={{
+                left: `${progress * 100}%`,
+                opacity: isPlaying ? 1 : 0,
+              }}
+            />
           </div>
           
-          {/* Bar numbers */}
-          <div className="flex mt-2 text-xs text-zinc-600">
-            {Array.from({ length: totalBars }).map((_, i) => (
-              <div key={i} className="flex-1 text-center">
-                {i + 1}
-              </div>
+          {/* Beat markers */}
+          <div className="relative h-2 mt-1">
+            {Array.from({ length: totalBeats }).map((_, i) => (
+              <div
+                key={i}
+                className={`absolute w-px h-full ${i % 4 === 0 ? 'bg-zinc-500' : 'bg-zinc-700'}`}
+                style={{ left: `${(i / totalBeats) * 100}%` }}
+              />
             ))}
           </div>
         </div>
 
-        {/* Settings Controls */}
-        <div className="space-y-6">
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            <div>
-              <label className="block text-sm font-medium text-zinc-400 mb-2">
-                Key
-              </label>
-              <select
-                value={key}
-                onChange={(e) => setKey(e.target.value as Key)}
-                className="w-full px-4 py-2.5 bg-zinc-800 border border-zinc-700 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-amber-500"
-                disabled={isPlaying}
-              >
-                {getAllKeys().map((k) => (
-                  <option key={k} value={k}>
-                    {k}
-                  </option>
-                ))}
-              </select>
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium text-zinc-400 mb-2">
-                Tempo: {tempo} BPM
-              </label>
-              <input
-                type="range"
-                min="60"
-                max="200"
-                value={tempo}
-                onChange={(e) => setTempo(parseInt(e.target.value))}
-                className="w-full h-2 bg-zinc-700 rounded-lg appearance-none cursor-pointer accent-amber-500"
-                disabled={isPlaying}
-              />
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium text-zinc-400 mb-2">
-                Instrument
-              </label>
-              <select
-                value={instrument}
-                onChange={(e) => setInstrument(e.target.value as Instrument)}
-                className="w-full px-4 py-2.5 bg-zinc-800 border border-zinc-700 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-amber-500"
-                disabled={isPlaying}
-              >
-                <option value="clean-guitar">Electric Guitar</option>
-                <option value="pluck">Acoustic Guitar</option>
-                <option value="synth">Synth</option>
-              </select>
-            </div>
+        {/* Settings Row */}
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-6">
+          <div>
+            <label className="block text-xs text-zinc-500 mb-1">Key</label>
+            <select
+              value={key}
+              onChange={(e) => setKey(e.target.value as Key)}
+              className="w-full px-3 py-2 bg-zinc-800 border border-zinc-700 rounded-lg text-white text-sm focus:outline-none focus:ring-1 focus:ring-amber-500"
+              disabled={isPlaying}
+            >
+              {getAllKeys().map((k) => (
+                <option key={k} value={k}>{k}</option>
+              ))}
+            </select>
           </div>
 
-          {/* Chord Builder */}
-          <div className="bg-zinc-800 rounded-lg p-5 border border-zinc-700">
-            <ChordBuilder chords={chords} onChange={handleChordChange} />
+          <div>
+            <label className="block text-xs text-zinc-500 mb-1">Tempo: {tempo} BPM</label>
+            <input
+              type="range"
+              min="60"
+              max="200"
+              value={tempo}
+              onChange={(e) => setTempo(parseInt(e.target.value))}
+              className="w-full h-2 bg-zinc-700 rounded-lg appearance-none cursor-pointer accent-amber-500 mt-2"
+              disabled={isPlaying}
+            />
           </div>
+
+          <div>
+            <label className="block text-xs text-zinc-500 mb-1">Instrument</label>
+            <select
+              value={instrument}
+              onChange={(e) => setInstrument(e.target.value as Instrument)}
+              className="w-full px-3 py-2 bg-zinc-800 border border-zinc-700 rounded-lg text-white text-sm focus:outline-none focus:ring-1 focus:ring-amber-500"
+              disabled={isPlaying}
+            >
+              <option value="clean-guitar">Electric Guitar</option>
+              <option value="pluck">Acoustic Guitar</option>
+              <option value="synth">Synth</option>
+            </select>
+          </div>
+
+          <div>
+            <label className="block text-xs text-zinc-500 mb-1">Strum Every</label>
+            <select
+              value={strumFrequency}
+              onChange={(e) => setStrumFrequency(parseInt(e.target.value) as StrumFrequency)}
+              className="w-full px-3 py-2 bg-zinc-800 border border-zinc-700 rounded-lg text-white text-sm focus:outline-none focus:ring-1 focus:ring-amber-500"
+            >
+              <option value={1}>1 Beat</option>
+              <option value={2}>2 Beats</option>
+              <option value={4}>4 Beats (Measure)</option>
+            </select>
+          </div>
+        </div>
+
+        {/* Chord Builder */}
+        <div className="bg-zinc-800 rounded-lg p-4 border border-zinc-700">
+          <ChordBuilder chords={chords} onChange={handleChordChange} />
         </div>
       </div>
     </div>
