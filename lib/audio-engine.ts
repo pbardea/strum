@@ -431,7 +431,7 @@ export class AudioEngine {
     if (this.currentInstrumentType === 'clean-guitar') {
       // Quick strum - tight arpeggio
       frequencies.forEach((freq, index) => {
-        const strumDelay = index * 0.015; // Very fast strum to feel on-beat
+        const strumDelay = index * 0.002; // Ultra-tight strum
         if (this.instrument instanceof Tone.Sampler) {
           const noteName = Tone.Frequency(midiNotes[index], 'midi').toNote();
           this.instrument.triggerAttackRelease(noteName, chordDuration, time + strumDelay);
@@ -443,12 +443,12 @@ export class AudioEngine {
       // If using sampler, use note names
       const noteNames = midiNotes.map(note => Tone.Frequency(note, 'midi').toNote());
       noteNames.forEach((note, index) => {
-        this.instrument.triggerAttackRelease(note, chordDuration, time + (index * 0.015));
+        this.instrument.triggerAttackRelease(note, chordDuration, time + (index * 0.002));
       });
     } else {
       // Regular synth
       frequencies.forEach((freq, index) => {
-        this.instrument.triggerAttackRelease(freq, chordDuration, time + (index * 0.015));
+        this.instrument.triggerAttackRelease(freq, chordDuration, time + (index * 0.002));
       });
     }
   }
