@@ -797,7 +797,7 @@ export default function Home() {
 
   return (
     <div className="min-h-screen bg-zinc-900 text-white">
-      <div className="container mx-auto px-4 py-6 max-w-4xl">
+      <div className="container mx-auto px-4 py-6 max-w-7xl">
         {/* Header */}
         <header className="mb-6 text-center">
           <h1 className="text-4xl font-bold mb-1 bg-gradient-to-r from-amber-400 to-amber-600 bg-clip-text text-transparent">
