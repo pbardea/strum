@@ -163,7 +163,9 @@ export default function Home() {
           </div>
 
           {/* Volume Controls - Compact */}
-          <div className="md:col-span-2 grid grid-cols-2 gap-3 bg-zinc-800 rounded-lg p-3 border border-zinc-700">
+          <div className="md:col-span-2 bg-zinc-800 rounded-lg p-3 border border-zinc-700">
+            <p className="text-xs text-zinc-400 font-medium mb-2">Volume</p>
+            <div className="grid grid-cols-2 gap-3">
             <div>
               <label className="block text-xs text-zinc-500 mb-1">
                 🎸 Chords: {chordVolume}%
@@ -189,6 +191,7 @@ export default function Home() {
                 onChange={(e) => setMetronomeVolume(parseInt(e.target.value))}
                 className="w-full h-1.5 bg-zinc-700 rounded-lg appearance-none cursor-pointer accent-amber-500"
               />
+            </div>
             </div>
           </div>
         </div>
