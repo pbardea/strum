@@ -9,6 +9,7 @@ import Fretboard from '@/components/fretboard';
 
 const STORAGE_KEY = 'strum-settings';
 const PROGRESSIONS_KEY = 'strum-progressions';
+const HIDDEN_PROGRESSIONS_KEY = 'strum-hidden-progressions';
 
 interface StoredSettings {
   key: Key;
@@ -584,6 +585,64 @@ function saveSavedProgressions(progressions: SavedProgression[]) {
   }
 }
 
+function loadHiddenProgressions(): string[] {
+  if (typeof window === 'undefined') return [];
+  try {
+    const stored = localStorage.getItem(HIDDEN_PROGRESSIONS_KEY);
+    if (stored) {
+      return JSON.parse(stored);
+    }
+  } catch (e) {
+    console.warn('Failed to load hidden progressions from localStorage:', e);
+  }
+  return [];
+}
+
+function saveHiddenProgressions(ids: string[]) {
+  if (typeof window === 'undefined') return;
+  try {
+    localStorage.setItem(HIDDEN_PROGRESSIONS_KEY, JSON.stringify(ids));
+  } catch (e) {
+    console.warn('Failed to save hidden progressions to localStorage:', e);
+  }
+}
+
+// URL encoding/decoding for sharing progressions
+function encodeProgressionToURL(progression: SavedProgression): string {
+  const data = {
+    n: progression.name,
+    c: progression.chords.map(c => ({
+      ...c,
+      // Shorten keys for URL
+      n: c.nashville,
+      b: c.bars,
+      t: c.beats,
+      q: c.quality,
+    })).map(({ n, b, t, q }) => ({ n, b, t, ...(q ? { q } : {}) })),
+  };
+  const encoded = btoa(JSON.stringify(data));
+  return `${window.location.origin}${window.location.pathname}?p=${encodeURIComponent(encoded)}`;
+}
+
+function decodeProgressionFromURL(encoded: string): SavedProgression | null {
+  try {
+    const decoded = JSON.parse(atob(encoded));
+    return {
+      id: `shared-${Date.now()}`,
+      name: decoded.n || 'Shared Progression',
+      chords: decoded.c.map((c: { n: number; b: number; t: number; q?: string }) => ({
+        nashville: c.n as NashvilleNumber,
+        bars: c.b,
+        beats: c.t,
+        ...(c.q ? { quality: c.q as ChordQuality } : {}),
+      })),
+    };
+  } catch (e) {
+    console.warn('Failed to decode progression from URL:', e);
+    return null;
+  }
+}
+
 export default function Home() {
   const [isLoaded, setIsLoaded] = useState(false);
   const [key, setKey] = useState<Key>(defaultSettings.key);
@@ -605,6 +664,8 @@ export default function Home() {
   const [currentProgressionId, setCurrentProgressionId] = useState<string | null>(defaultSettings.currentProgressionId);
   const [newProgressionName, setNewProgressionName] = useState('');
   const [showSaveDialog, setShowSaveDialog] = useState(false);
+  const [hiddenProgressionIds, setHiddenProgressionIds] = useState<string[]>([]);
+  const [showHiddenSection, setShowHiddenSection] = useState(false);
 
   const audioEngineRef = useRef<AudioEngine | null>(null);
 
@@ -613,21 +674,60 @@ export default function Home() {
 
   // All progressions (presets + saved)
   const allProgressions = [...PRESET_PROGRESSIONS, ...savedProgressions];
+  
+  // Split into visible and hidden
+  const visibleProgressions = allProgressions.filter(p => !hiddenProgressionIds.includes(p.id));
+  const hiddenProgressions = allProgressions.filter(p => hiddenProgressionIds.includes(p.id));
 
-  // Load settings from localStorage on mount
+  // Load settings from localStorage on mount and check for shared URL
   useEffect(() => {
     const settings = loadSettings();
+    const savedProgs = loadSavedProgressions();
+    const hiddenIds = loadHiddenProgressions();
+    
+    // Check for shared progression in URL
+    const urlParams = new URLSearchParams(window.location.search);
+    const sharedParam = urlParams.get('p');
+    
+    if (sharedParam) {
+      const sharedProgression = decodeProgressionFromURL(sharedParam);
+      if (sharedProgression) {
+        // Check if we already have this progression (by name)
+        const existingByName = [...PRESET_PROGRESSIONS, ...savedProgs].find(
+          p => p.name === sharedProgression.name
+        );
+        
+        if (existingByName) {
+          // Use existing progression
+          setChords(existingByName.chords);
+          setCurrentProgressionId(existingByName.id);
+        } else {
+          // Add to saved progressions
+          const updatedProgs = [...savedProgs, sharedProgression];
+          setSavedProgressions(updatedProgs);
+          saveSavedProgressions(updatedProgs);
+          setChords(sharedProgression.chords);
+          setCurrentProgressionId(sharedProgression.id);
+        }
+        
+        // Clear URL param without refresh
+        window.history.replaceState({}, '', window.location.pathname);
+      }
+    } else {
+      setChords(settings.chords);
+      setCurrentProgressionId(settings.currentProgressionId);
+    }
+    
     setKey(settings.key);
     setMode(settings.mode);
-    setChords(settings.chords);
     setTempo(settings.tempo);
     setInstrument(settings.instrument);
     setStrumFrequency(settings.strumFrequency);
     setChordVolume(settings.chordVolume);
     setMetronomeVolume(settings.metronomeVolume);
     setBassVolume(settings.bassVolume);
-    setCurrentProgressionId(settings.currentProgressionId);
-    setSavedProgressions(loadSavedProgressions());
+    setSavedProgressions(savedProgs);
+    setHiddenProgressionIds(hiddenIds);
     setIsLoaded(true);
   }, []);
 
@@ -769,6 +869,44 @@ export default function Home() {
     saveSavedProgressions(updated);
     if (currentProgressionId === progressionId) {
       setCurrentProgressionId(null);
+    }
+    // Also remove from hidden if it was hidden
+    if (hiddenProgressionIds.includes(progressionId)) {
+      const updatedHidden = hiddenProgressionIds.filter(id => id !== progressionId);
+      setHiddenProgressionIds(updatedHidden);
+      saveHiddenProgressions(updatedHidden);
+    }
+  };
+
+  const handleHideProgression = (progressionId: string) => {
+    const updated = [...hiddenProgressionIds, progressionId];
+    setHiddenProgressionIds(updated);
+    saveHiddenProgressions(updated);
+  };
+
+  const handleUnhideProgression = (progressionId: string) => {
+    const updated = hiddenProgressionIds.filter(id => id !== progressionId);
+    setHiddenProgressionIds(updated);
+    saveHiddenProgressions(updated);
+  };
+
+  const handleShareProgression = async () => {
+    const currentProg = allProgressions.find(p => p.id === currentProgressionId);
+    const progression: SavedProgression = currentProg || {
+      id: 'custom',
+      name: 'Custom Progression',
+      chords: chords,
+    };
+    
+    const url = encodeProgressionToURL(progression);
+    
+    try {
+      await navigator.clipboard.writeText(url);
+      // Could add a toast notification here
+      alert('Link copied to clipboard!');
+    } catch (e) {
+      // Fallback for older browsers
+      prompt('Copy this link to share:', url);
     }
   };
 
@@ -949,6 +1087,16 @@ export default function Home() {
             <p className="text-xs text-zinc-400 font-medium">Progression</p>
             <div className="flex gap-2">
               <button
+                onClick={handleShareProgression}
+                className="px-3 py-1 text-xs bg-zinc-700 hover:bg-zinc-600 rounded-lg transition-colors flex items-center gap-1"
+                title="Copy shareable link"
+              >
+                <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8.684 13.342C8.886 12.938 9 12.482 9 12c0-.482-.114-.938-.316-1.342m0 2.684a3 3 0 110-2.684m0 2.684l6.632 3.316m-6.632-6l6.632-3.316m0 0a3 3 0 105.367-2.684 3 3 0 00-5.367 2.684zm0 9.316a3 3 0 105.368 2.684 3 3 0 00-5.368-2.684z" />
+                </svg>
+                Share
+              </button>
+              <button
                 onClick={() => setShowSaveDialog(true)}
                 className="px-3 py-1 text-xs bg-zinc-700 hover:bg-zinc-600 rounded-lg transition-colors"
                 disabled={isPlaying}
@@ -988,30 +1136,49 @@ export default function Home() {
           
           {/* Progression List */}
           <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
-            {allProgressions.map((prog) => (
-              <button
+            {visibleProgressions.map((prog) => (
+              <div
                 key={prog.id}
-                onClick={() => handleSelectProgression(prog.id)}
-                title={prog.name}
-                className={`relative px-3 py-2 text-xs rounded-lg transition-all text-left ${
+                className={`relative group rounded-lg transition-all ${
                   currentProgressionId === prog.id
                     ? 'bg-amber-600 text-white'
                     : 'bg-zinc-700 hover:bg-zinc-600 text-zinc-300'
                 }`}
               >
-                <span className="block truncate">{prog.name}</span>
-                {!prog.isPreset && currentProgressionId !== prog.id && (
+                <button
+                  onClick={() => handleSelectProgression(prog.id)}
+                  title={prog.name}
+                  className="w-full px-3 py-2 text-xs text-left pr-12"
+                >
+                  <span className="block truncate">{prog.name}</span>
+                </button>
+                <div className="absolute top-1 right-1 flex gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity">
                   <button
                     onClick={(e) => {
                       e.stopPropagation();
-                      handleDeleteProgression(prog.id);
+                      handleHideProgression(prog.id);
                     }}
-                    className="absolute top-1 right-1 w-4 h-4 flex items-center justify-center text-zinc-400 hover:text-red-400 rounded"
+                    className="w-5 h-5 flex items-center justify-center text-zinc-400 hover:text-zinc-200 rounded text-[10px]"
+                    title="Hide progression"
                   >
-                    ×
+                    <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.543-7a9.97 9.97 0 011.563-3.029m5.858.908a3 3 0 114.243 4.243M9.878 9.878l4.242 4.242M9.88 9.88l-3.29-3.29m7.532 7.532l3.29 3.29M3 3l3.59 3.59m0 0A9.953 9.953 0 0112 5c4.478 0 8.268 2.943 9.543 7a10.025 10.025 0 01-4.132 5.411m0 0L21 21" />
+                    </svg>
                   </button>
-                )}
-              </button>
+                  {!prog.isPreset && (
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleDeleteProgression(prog.id);
+                      }}
+                      className="w-5 h-5 flex items-center justify-center text-zinc-400 hover:text-red-400 rounded"
+                      title="Delete progression"
+                    >
+                      ×
+                    </button>
+                  )}
+                </div>
+              </div>
             ))}
             {currentProgressionId === null && (
               <div className="px-3 py-2 text-xs rounded-lg bg-zinc-600 text-amber-400 border border-amber-500/50">
@@ -1019,6 +1186,72 @@ export default function Home() {
               </div>
             )}
           </div>
+          
+          {/* Hidden Progressions Section */}
+          {hiddenProgressions.length > 0 && (
+            <div className="mt-4 pt-3 border-t border-zinc-700">
+              <button
+                onClick={() => setShowHiddenSection(!showHiddenSection)}
+                className="flex items-center gap-2 text-xs text-zinc-500 hover:text-zinc-400 transition-colors"
+              >
+                <svg 
+                  className={`w-3 h-3 transition-transform ${showHiddenSection ? 'rotate-90' : ''}`} 
+                  fill="none" 
+                  stroke="currentColor" 
+                  viewBox="0 0 24 24"
+                >
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                </svg>
+                Hidden ({hiddenProgressions.length})
+              </button>
+              
+              {showHiddenSection && (
+                <div className="mt-2 grid grid-cols-2 md:grid-cols-4 gap-2">
+                  {hiddenProgressions.map((prog) => (
+                    <div
+                      key={prog.id}
+                      className="relative group rounded-lg bg-zinc-800 text-zinc-500 border border-zinc-700"
+                    >
+                      <button
+                        onClick={() => handleSelectProgression(prog.id)}
+                        title={prog.name}
+                        className="w-full px-3 py-2 text-xs text-left pr-12"
+                      >
+                        <span className="block truncate">{prog.name}</span>
+                      </button>
+                      <div className="absolute top-1 right-1 flex gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity">
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleUnhideProgression(prog.id);
+                          }}
+                          className="w-5 h-5 flex items-center justify-center text-zinc-500 hover:text-zinc-300 rounded text-[10px]"
+                          title="Show progression"
+                        >
+                          <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+                          </svg>
+                        </button>
+                        {!prog.isPreset && (
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleDeleteProgression(prog.id);
+                            }}
+                            className="w-5 h-5 flex items-center justify-center text-zinc-500 hover:text-red-400 rounded"
+                            title="Delete progression"
+                          >
+                            ×
+                          </button>
+                        )}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
         </div>
 
         {/* Settings Row */}
