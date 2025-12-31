@@ -1,5 +1,5 @@
 import * as Tone from 'tone';
-import { nashvilleToChord, chordToMidiNotes, type Key, type NashvilleNumber, type ChordQuality } from './music-theory';
+import { nashvilleToChord, chordToMidiNotes, type Key, type KeyMode, type NashvilleNumber, type ChordQuality } from './music-theory';
 
 export interface ChordEvent {
   nashville: NashvilleNumber;
@@ -27,6 +27,7 @@ export class AudioEngine {
   
   private chordEvents: ChordEvent[] = [];
   private currentKey: string = 'C';
+  private currentMode: KeyMode = 'major';
   private tempo: number = 120;
   private strumFrequency: StrumFrequency = 4; // Default: strum every 4 beats (once per measure)
   private isPlaying: boolean = false;
@@ -180,6 +181,10 @@ export class AudioEngine {
 
   setKey(key: string) {
     this.currentKey = key;
+  }
+
+  setMode(mode: KeyMode) {
+    this.currentMode = mode;
   }
 
   setStrumFrequency(frequency: StrumFrequency) {
@@ -444,7 +449,7 @@ export class AudioEngine {
   }
 
   private playChord(nashville: NashvilleNumber, time: number, durationBars: number = 1, qualityOverride?: ChordQuality) {
-    const chord = nashvilleToChord(nashville, this.currentKey as Key, qualityOverride);
+    const chord = nashvilleToChord(nashville, this.currentKey as Key, this.currentMode, qualityOverride);
     const midiNotes = chordToMidiNotes(chord, 3); // Lower octave for guitar
     
     // Convert MIDI notes to frequencies
@@ -496,7 +501,7 @@ export class AudioEngine {
   }
 
   private getChordName(nashville: NashvilleNumber, qualityOverride?: ChordQuality): string {
-    const chord = nashvilleToChord(nashville, this.currentKey as Key, qualityOverride);
+    const chord = nashvilleToChord(nashville, this.currentKey as Key, this.currentMode, qualityOverride);
     return chord.name;
   }
 

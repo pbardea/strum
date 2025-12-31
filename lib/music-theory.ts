@@ -1,5 +1,7 @@
 export type Key = 'C' | 'C#' | 'D' | 'D#' | 'E' | 'F' | 'F#' | 'G' | 'G#' | 'A' | 'A#' | 'B';
 
+export type KeyMode = 'major' | 'minor';
+
 export type NashvilleNumber = 1 | 2 | 3 | 4 | 5 | 6 | 7;
 
 export type ChordQuality = 'maj' | 'min' | 'dim';
@@ -11,7 +13,7 @@ export interface Chord {
 }
 
 // Diatonic chord qualities for major scale
-const DIATONIC_QUALITIES: Record<NashvilleNumber, ChordQuality> = {
+const MAJOR_DIATONIC_QUALITIES: Record<NashvilleNumber, ChordQuality> = {
   1: 'maj',
   2: 'min',
   3: 'min',
@@ -21,11 +23,25 @@ const DIATONIC_QUALITIES: Record<NashvilleNumber, ChordQuality> = {
   7: 'dim',
 };
 
+// Diatonic chord qualities for natural minor scale
+const MINOR_DIATONIC_QUALITIES: Record<NashvilleNumber, ChordQuality> = {
+  1: 'min',
+  2: 'dim',
+  3: 'maj',
+  4: 'min',
+  5: 'min',  // Natural minor has minor v; harmonic minor would have major V
+  6: 'maj',
+  7: 'maj',
+};
+
 // Chromatic scale starting from C
 const CHROMATIC_NOTES = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B'];
 
 // Major scale intervals (semitones from root)
 const MAJOR_SCALE_INTERVALS = [0, 2, 4, 5, 7, 9, 11];
+
+// Natural minor scale intervals (semitones from root)
+const MINOR_SCALE_INTERVALS = [0, 2, 3, 5, 7, 8, 10];
 
 /**
  * Get the index of a key in the chromatic scale
@@ -35,16 +51,32 @@ function getKeyIndex(key: Key): number {
 }
 
 /**
- * Convert Nashville number to actual chord in a given key
+ * Get diatonic qualities based on mode
+ */
+function getDiatonicQualities(mode: KeyMode): Record<NashvilleNumber, ChordQuality> {
+  return mode === 'minor' ? MINOR_DIATONIC_QUALITIES : MAJOR_DIATONIC_QUALITIES;
+}
+
+/**
+ * Get scale intervals based on mode
+ */
+function getScaleIntervals(mode: KeyMode): number[] {
+  return mode === 'minor' ? MINOR_SCALE_INTERVALS : MAJOR_SCALE_INTERVALS;
+}
+
+/**
+ * Convert Nashville number to actual chord in a given key and mode
  * Optionally override the diatonic quality (e.g., 3maj instead of 3min)
  */
-export function nashvilleToChord(nashville: NashvilleNumber, key: Key, qualityOverride?: ChordQuality): Chord {
+export function nashvilleToChord(nashville: NashvilleNumber, key: Key, mode: KeyMode = 'major', qualityOverride?: ChordQuality): Chord {
   const keyIndex = getKeyIndex(key);
   const scaleDegree = nashville - 1; // Convert to 0-based index
-  const semitones = MAJOR_SCALE_INTERVALS[scaleDegree];
+  const intervals = getScaleIntervals(mode);
+  const semitones = intervals[scaleDegree];
   const chordRootIndex = (keyIndex + semitones) % 12;
   const chordRoot = CHROMATIC_NOTES[chordRootIndex];
-  const quality = qualityOverride ?? DIATONIC_QUALITIES[nashville];
+  const diatonicQualities = getDiatonicQualities(mode);
+  const quality = qualityOverride ?? diatonicQualities[nashville];
 
   return {
     root: chordRoot,
@@ -56,18 +88,20 @@ export function nashvilleToChord(nashville: NashvilleNumber, key: Key, qualityOv
 /**
  * Format Nashville notation with quality suffix
  */
-export function formatNashville(nashville: NashvilleNumber, quality?: ChordQuality): string {
+export function formatNashville(nashville: NashvilleNumber, mode: KeyMode = 'major', quality?: ChordQuality): string {
   if (!quality) return String(nashville);
-  const diatonic = DIATONIC_QUALITIES[nashville];
+  const diatonicQualities = getDiatonicQualities(mode);
+  const diatonic = diatonicQualities[nashville];
   if (quality === diatonic) return String(nashville); // No suffix needed if it's the default
   return `${nashville}${quality}`;
 }
 
 /**
- * Get the diatonic (default) quality for a Nashville number
+ * Get the diatonic (default) quality for a Nashville number in a given mode
  */
-export function getDiatonicQuality(nashville: NashvilleNumber): ChordQuality {
-  return DIATONIC_QUALITIES[nashville];
+export function getDiatonicQuality(nashville: NashvilleNumber, mode: KeyMode = 'major'): ChordQuality {
+  const diatonicQualities = getDiatonicQualities(mode);
+  return diatonicQualities[nashville];
 }
 
 /**

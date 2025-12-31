@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useRef } from 'react';
 import { AudioEngine, ChordEvent, Instrument, StrumFrequency } from '@/lib/audio-engine';
-import { getAllKeys, nashvilleToChord, formatNashville, getDiatonicQuality, type Key, type NashvilleNumber, type ChordQuality } from '@/lib/music-theory';
+import { getAllKeys, nashvilleToChord, formatNashville, getDiatonicQuality, type Key, type KeyMode, type NashvilleNumber, type ChordQuality } from '@/lib/music-theory';
 import ChordBuilder from '@/components/chord-builder';
 import Transport from '@/components/transport';
 
@@ -11,6 +11,7 @@ const PROGRESSIONS_KEY = 'strum-progressions';
 
 interface StoredSettings {
   key: Key;
+  mode: KeyMode;
   chords: ChordEvent[];
   tempo: number;
   instrument: Instrument;
@@ -525,6 +526,7 @@ const PRESET_PROGRESSIONS: SavedProgression[] = [
 
 const defaultSettings: StoredSettings = {
   key: 'C',
+  mode: 'major',
   chords: PRESET_PROGRESSIONS[0].chords,
   tempo: 120,
   instrument: 'pluck',
@@ -584,6 +586,7 @@ function saveSavedProgressions(progressions: SavedProgression[]) {
 export default function Home() {
   const [isLoaded, setIsLoaded] = useState(false);
   const [key, setKey] = useState<Key>(defaultSettings.key);
+  const [mode, setMode] = useState<KeyMode>(defaultSettings.mode);
   const [chords, setChords] = useState<ChordEvent[]>(defaultSettings.chords);
   const [tempo, setTempo] = useState(defaultSettings.tempo);
   const [instrument, setInstrument] = useState<Instrument>(defaultSettings.instrument);
@@ -614,6 +617,7 @@ export default function Home() {
   useEffect(() => {
     const settings = loadSettings();
     setKey(settings.key);
+    setMode(settings.mode);
     setChords(settings.chords);
     setTempo(settings.tempo);
     setInstrument(settings.instrument);
@@ -651,10 +655,11 @@ export default function Home() {
   useEffect(() => {
     if (audioEngineRef.current && isLoaded) {
       audioEngineRef.current.setKey(key);
+      audioEngineRef.current.setMode(mode);
       audioEngineRef.current.setChordProgression(chords);
-      saveSettings({ key, chords, currentProgressionId });
+      saveSettings({ key, mode, chords, currentProgressionId });
     }
-  }, [key, chords, currentProgressionId, isLoaded]);
+  }, [key, mode, chords, currentProgressionId, isLoaded]);
 
   useEffect(() => {
     if (audioEngineRef.current && isLoaded) {
@@ -718,7 +723,7 @@ export default function Home() {
     setCurrentProgressionId(null); // Mark as custom/modified
     if (newChords.length > 0) {
       setCurrentChordIndex(0);
-      const firstChord = nashvilleToChord(newChords[0].nashville, key, newChords[0].quality);
+      const firstChord = nashvilleToChord(newChords[0].nashville, key, mode, newChords[0].quality);
       setCurrentChordName(firstChord.name);
     }
   };
@@ -734,7 +739,7 @@ export default function Home() {
       setChords(progression.chords);
       setCurrentProgressionId(progressionId);
       if (progression.chords.length > 0) {
-        const firstChord = nashvilleToChord(progression.chords[0].nashville, key, progression.chords[0].quality);
+        const firstChord = nashvilleToChord(progression.chords[0].nashville, key, mode, progression.chords[0].quality);
         setCurrentChordName(firstChord.name);
       }
     }
@@ -775,8 +780,8 @@ export default function Home() {
       const chordBeats = (chord.bars * 4) + chord.beats;
       const startPercent = (beatOffset / totalBeats) * 100;
       const widthPercent = (chordBeats / totalBeats) * 100;
-      const chordInfo = nashvilleToChord(chord.nashville, key, chord.quality);
-      const nashvilleDisplay = formatNashville(chord.nashville, chord.quality);
+      const chordInfo = nashvilleToChord(chord.nashville, key, mode, chord.quality);
+      const nashvilleDisplay = formatNashville(chord.nashville, mode, chord.quality);
       
       positions.push({ chord, chordInfo, nashvilleDisplay, startPercent, widthPercent, index });
       beatOffset += chordBeats;
@@ -811,11 +816,11 @@ export default function Home() {
           <div className="md:col-span-1 flex flex-col justify-center items-center py-4 bg-zinc-800 rounded-lg border border-zinc-700">
             <p className="text-xs text-zinc-500 mb-1">Current Chord</p>
             <p className={`text-4xl font-bold transition-colors ${isPlaying ? 'text-amber-400' : 'text-zinc-600'}`}>
-              {currentChordName || nashvilleToChord(chords[0]?.nashville || 1, key, chords[0]?.quality).name}
+              {currentChordName || nashvilleToChord(chords[0]?.nashville || 1, key, mode, chords[0]?.quality).name}
             </p>
             {chords[currentChordIndex] && (
               <p className="text-xs text-zinc-500 mt-1">
-                Nashville: {formatNashville(chords[currentChordIndex].nashville, chords[currentChordIndex].quality)}
+                Nashville: {formatNashville(chords[currentChordIndex].nashville, mode, chords[currentChordIndex].quality)}
               </p>
             )}
           </div>
@@ -1001,13 +1006,19 @@ export default function Home() {
           <div>
             <label className="block text-xs text-zinc-500 mb-1">Key</label>
             <select
-              value={key}
-              onChange={(e) => setKey(e.target.value as Key)}
+              value={`${key}-${mode}`}
+              onChange={(e) => {
+                const [newKey, newMode] = e.target.value.split('-') as [Key, KeyMode];
+                setKey(newKey);
+                setMode(newMode);
+              }}
               className="w-full px-3 py-2 bg-zinc-800 border border-zinc-700 rounded-lg text-white text-sm focus:outline-none focus:ring-1 focus:ring-amber-500"
-              disabled={isPlaying}
             >
               {getAllKeys().map((k) => (
-                <option key={k} value={k}>{k}</option>
+                <optgroup key={k} label={k}>
+                  <option value={`${k}-major`}>{k} Major</option>
+                  <option value={`${k}-minor`}>{k} Minor</option>
+                </optgroup>
               ))}
             </select>
           </div>
@@ -1054,7 +1065,7 @@ export default function Home() {
 
         {/* Chord Builder */}
         <div className="bg-zinc-800 rounded-lg p-4 border border-zinc-700">
-          <ChordBuilder chords={chords} onChange={handleChordChange} />
+          <ChordBuilder chords={chords} mode={mode} onChange={handleChordChange} />
         </div>
       </div>
     </div>

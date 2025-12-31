@@ -1,14 +1,15 @@
 'use client';
 
 import { ChordEvent } from '@/lib/audio-engine';
-import { getDiatonicQuality, type ChordQuality, type NashvilleNumber } from '@/lib/music-theory';
+import { getDiatonicQuality, type ChordQuality, type KeyMode, type NashvilleNumber } from '@/lib/music-theory';
 
 interface ChordBuilderProps {
   chords: ChordEvent[];
+  mode: KeyMode;
   onChange: (chords: ChordEvent[]) => void;
 }
 
-export default function ChordBuilder({ chords, onChange }: ChordBuilderProps) {
+export default function ChordBuilder({ chords, mode, onChange }: ChordBuilderProps) {
   const addChord = () => {
     onChange([...chords, { nashville: 1, bars: 1, beats: 0 }]);
   };
@@ -24,12 +25,12 @@ export default function ChordBuilder({ chords, onChange }: ChordBuilderProps) {
   };
 
   const getEffectiveQuality = (chord: ChordEvent): ChordQuality => {
-    return chord.quality ?? getDiatonicQuality(chord.nashville);
+    return chord.quality ?? getDiatonicQuality(chord.nashville, mode);
   };
 
   const handleQualityChange = (index: number, quality: ChordQuality) => {
     const chord = chords[index];
-    const diatonicQuality = getDiatonicQuality(chord.nashville);
+    const diatonicQuality = getDiatonicQuality(chord.nashville, mode);
     // If selecting the diatonic quality, remove the override
     if (quality === diatonicQuality) {
       const { quality: _, ...rest } = chords[index];
@@ -55,7 +56,7 @@ export default function ChordBuilder({ chords, onChange }: ChordBuilderProps) {
 
       <div className="space-y-3">
         {chords.map((chord, index) => {
-          const diatonicQuality = getDiatonicQuality(chord.nashville);
+          const diatonicQuality = getDiatonicQuality(chord.nashville, mode);
           const isOverridden = chord.quality && chord.quality !== diatonicQuality;
           
           return (
