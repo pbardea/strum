@@ -16,7 +16,7 @@ interface FretboardProps {
 // MIDI note numbers for open strings
 const OPEN_STRINGS = [40, 45, 50, 55, 59, 64]; // E2, A2, D3, G3, B3, E4
 const STRING_NAMES = ['E', 'A', 'D', 'G', 'B', 'E'];
-const NUM_FRETS = 23;
+const NUM_FRETS = 22;
 
 const CHROMATIC_NOTES = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B'];
 
@@ -75,9 +75,9 @@ function getChordTone(noteMidi: number, chordRoot: Key, chordQuality: ChordQuali
 export default function Fretboard({ scaleRoot, scaleMode, chordRoot, chordQuality, chordName }: FretboardProps) {
   const fretWidth = 100 / (NUM_FRETS + 1); // +1 for nut/open position
   
-  // Fret markers (dots) at frets 3, 5, 7, 9, 12 (double), 15, 17, 19, 21, 24 (double)
+  // Fret markers (dots) at frets 3, 5, 7, 9, 12 (double), 15, 17, 19, 21
   const fretMarkers = [3, 5, 7, 9, 15, 17, 19, 21];
-  const doubleFretMarkers = [12, 24];
+  const doubleFretMarkers = [12];
 
   // Get interval names for legend
   const thirdName = chordQuality === 'maj' ? '3rd' : 'b3rd';
@@ -89,8 +89,8 @@ export default function Fretboard({ scaleRoot, scaleMode, chordRoot, chordQualit
         {scaleRoot} {scaleMode === 'major' ? 'Major' : 'Minor'} Pentatonic — <span className="text-amber-400">{chordName}</span> highlighted
       </h3>
       
-      <div className="relative overflow-x-auto">
-        <div className="min-w-[900px]">
+      <div className="relative">
+        <div>
           {/* Fret numbers */}
           <div className="flex mb-1" style={{ paddingLeft: '24px' }}>
             <div className="text-[10px] text-zinc-600 text-center" style={{ width: `${fretWidth}%` }}>
