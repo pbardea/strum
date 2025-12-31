@@ -22,6 +22,7 @@ interface StoredSettings {
   metronomeVolume: number;
   bassVolume: number;
   currentProgressionId: string | null;
+  showFretboard: boolean;
 }
 
 interface SavedProgression {
@@ -537,6 +538,7 @@ const defaultSettings: StoredSettings = {
   metronomeVolume: 50,
   bassVolume: 60,
   currentProgressionId: PRESET_PROGRESSIONS[0].id,
+  showFretboard: true,
 };
 
 function loadSettings(): StoredSettings {
@@ -666,6 +668,7 @@ export default function Home() {
   const [showSaveDialog, setShowSaveDialog] = useState(false);
   const [hiddenProgressionIds, setHiddenProgressionIds] = useState<string[]>([]);
   const [showHiddenSection, setShowHiddenSection] = useState(false);
+  const [showFretboard, setShowFretboard] = useState(defaultSettings.showFretboard);
 
   const audioEngineRef = useRef<AudioEngine | null>(null);
 
@@ -726,6 +729,7 @@ export default function Home() {
     setChordVolume(settings.chordVolume);
     setMetronomeVolume(settings.metronomeVolume);
     setBassVolume(settings.bassVolume);
+    setShowFretboard(settings.showFretboard ?? true);
     setSavedProgressions(savedProgs);
     setHiddenProgressionIds(hiddenIds);
     setIsLoaded(true);
@@ -803,6 +807,12 @@ export default function Home() {
       saveSettings({ bassVolume });
     }
   }, [bassVolume, isLoaded]);
+
+  useEffect(() => {
+    if (isLoaded) {
+      saveSettings({ showFretboard });
+    }
+  }, [showFretboard, isLoaded]);
 
   const handlePlay = async () => {
     if (audioEngineRef.current) {
@@ -1065,7 +1075,22 @@ export default function Home() {
 
         {/* Chord Tones Fretboard */}
         <div className="mb-6">
-          {(() => {
+          <button
+            onClick={() => setShowFretboard(!showFretboard)}
+            className="flex items-center gap-2 text-xs text-zinc-500 hover:text-zinc-400 transition-colors mb-2"
+          >
+            <svg 
+              className={`w-3 h-3 transition-transform ${showFretboard ? 'rotate-90' : ''}`} 
+              fill="none" 
+              stroke="currentColor" 
+              viewBox="0 0 24 24"
+            >
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+            </svg>
+            {showFretboard ? 'Hide' : 'Show'} Fretboard
+          </button>
+          
+          {showFretboard && (() => {
             const currentChord = chords[currentChordIndex] || chords[0];
             if (!currentChord) return null;
             const chordInfo = nashvilleToChord(currentChord.nashville, key, mode, currentChord.quality);
