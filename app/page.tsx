@@ -6,20 +6,70 @@ import { getAllKeys, nashvilleToChord, type Key } from '@/lib/music-theory';
 import ChordBuilder from '@/components/chord-builder';
 import Transport from '@/components/transport';
 
-export default function Home() {
-  const [key, setKey] = useState<Key>('C');
-  const [chords, setChords] = useState<ChordEvent[]>([
+const STORAGE_KEY = 'strum-settings';
+
+interface StoredSettings {
+  key: Key;
+  chords: ChordEvent[];
+  tempo: number;
+  instrument: Instrument;
+  strumFrequency: StrumFrequency;
+  chordVolume: number;
+  metronomeVolume: number;
+}
+
+const defaultSettings: StoredSettings = {
+  key: 'C',
+  chords: [
     { nashville: 1, bars: 2, beats: 0 },
     { nashville: 4, bars: 2, beats: 0 },
     { nashville: 5, bars: 2, beats: 0 },
     { nashville: 1, bars: 2, beats: 0 },
-  ]);
-  const [tempo, setTempo] = useState(120);
-  const [instrument, setInstrument] = useState<Instrument>('clean-guitar');
-  const [strumFrequency, setStrumFrequency] = useState<StrumFrequency>(4);
+  ],
+  tempo: 120,
+  instrument: 'pluck', // Default to acoustic guitar
+  strumFrequency: 4,
+  chordVolume: 80,
+  metronomeVolume: 50,
+};
+
+function loadSettings(): StoredSettings {
+  if (typeof window === 'undefined') return defaultSettings;
+  
+  try {
+    const stored = localStorage.getItem(STORAGE_KEY);
+    if (stored) {
+      const parsed = JSON.parse(stored);
+      return { ...defaultSettings, ...parsed };
+    }
+  } catch (e) {
+    console.warn('Failed to load settings from localStorage:', e);
+  }
+  return defaultSettings;
+}
+
+function saveSettings(settings: Partial<StoredSettings>) {
+  if (typeof window === 'undefined') return;
+  
+  try {
+    const current = loadSettings();
+    const updated = { ...current, ...settings };
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(updated));
+  } catch (e) {
+    console.warn('Failed to save settings to localStorage:', e);
+  }
+}
+
+export default function Home() {
+  const [isLoaded, setIsLoaded] = useState(false);
+  const [key, setKey] = useState<Key>(defaultSettings.key);
+  const [chords, setChords] = useState<ChordEvent[]>(defaultSettings.chords);
+  const [tempo, setTempo] = useState(defaultSettings.tempo);
+  const [instrument, setInstrument] = useState<Instrument>(defaultSettings.instrument);
+  const [strumFrequency, setStrumFrequency] = useState<StrumFrequency>(defaultSettings.strumFrequency);
   const [isPlaying, setIsPlaying] = useState(false);
-  const [chordVolume, setChordVolume] = useState(80);
-  const [metronomeVolume, setMetronomeVolume] = useState(50);
+  const [chordVolume, setChordVolume] = useState(defaultSettings.chordVolume);
+  const [metronomeVolume, setMetronomeVolume] = useState(defaultSettings.metronomeVolume);
   const [currentChordIndex, setCurrentChordIndex] = useState(0);
   const [currentChordName, setCurrentChordName] = useState('');
   const [progress, setProgress] = useState(0);
@@ -29,8 +79,21 @@ export default function Home() {
   // Calculate total beats for timeline
   const totalBeats = chords.reduce((sum, chord) => sum + (chord.bars * 4) + chord.beats, 0);
 
+  // Load settings from localStorage on mount
   useEffect(() => {
-    // Initialize audio engine
+    const settings = loadSettings();
+    setKey(settings.key);
+    setChords(settings.chords);
+    setTempo(settings.tempo);
+    setInstrument(settings.instrument);
+    setStrumFrequency(settings.strumFrequency);
+    setChordVolume(settings.chordVolume);
+    setMetronomeVolume(settings.metronomeVolume);
+    setIsLoaded(true);
+  }, []);
+
+  // Initialize audio engine
+  useEffect(() => {
     audioEngineRef.current = new AudioEngine();
     const engine = audioEngineRef.current;
 
@@ -52,42 +115,68 @@ export default function Home() {
     };
   }, []);
 
+  // Save and apply key changes
   useEffect(() => {
+    if (!isLoaded) return;
+    saveSettings({ key });
     if (audioEngineRef.current) {
       audioEngineRef.current.setKey(key);
+    }
+  }, [key, isLoaded]);
+
+  // Save and apply chord changes
+  useEffect(() => {
+    if (!isLoaded) return;
+    saveSettings({ chords });
+    if (audioEngineRef.current) {
       audioEngineRef.current.setChordProgression(chords);
     }
-  }, [key, chords]);
+  }, [chords, isLoaded]);
 
+  // Save and apply tempo changes
   useEffect(() => {
+    if (!isLoaded) return;
+    saveSettings({ tempo });
     if (audioEngineRef.current) {
       audioEngineRef.current.setTempo(tempo);
     }
-  }, [tempo]);
+  }, [tempo, isLoaded]);
 
+  // Save and apply instrument changes
   useEffect(() => {
+    if (!isLoaded) return;
+    saveSettings({ instrument });
     if (audioEngineRef.current) {
       audioEngineRef.current.setInstrument(instrument);
     }
-  }, [instrument]);
+  }, [instrument, isLoaded]);
 
+  // Save and apply strum frequency changes
   useEffect(() => {
+    if (!isLoaded) return;
+    saveSettings({ strumFrequency });
     if (audioEngineRef.current) {
       audioEngineRef.current.setStrumFrequency(strumFrequency);
     }
-  }, [strumFrequency]);
+  }, [strumFrequency, isLoaded]);
 
+  // Save and apply chord volume changes
   useEffect(() => {
+    if (!isLoaded) return;
+    saveSettings({ chordVolume });
     if (audioEngineRef.current) {
       audioEngineRef.current.setInstrumentVolume(chordVolume);
     }
-  }, [chordVolume]);
+  }, [chordVolume, isLoaded]);
 
+  // Save and apply metronome volume changes
   useEffect(() => {
+    if (!isLoaded) return;
+    saveSettings({ metronomeVolume });
     if (audioEngineRef.current) {
       audioEngineRef.current.setMetronomeVolume(metronomeVolume);
     }
-  }, [metronomeVolume]);
+  }, [metronomeVolume, isLoaded]);
 
   const handlePlay = async () => {
     if (audioEngineRef.current) {
@@ -280,8 +369,8 @@ export default function Home() {
               className="w-full px-3 py-2 bg-zinc-800 border border-zinc-700 rounded-lg text-white text-sm focus:outline-none focus:ring-1 focus:ring-amber-500"
               disabled={isPlaying}
             >
-              <option value="clean-guitar">Electric Guitar</option>
               <option value="pluck">Acoustic Guitar</option>
+              <option value="clean-guitar">Electric Guitar</option>
               <option value="synth">Synth</option>
             </select>
           </div>
