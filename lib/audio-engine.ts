@@ -1,0 +1,450 @@
+import * as Tone from 'tone';
+import { nashvilleToChord, chordToMidiNotes, type Key, type NashvilleNumber } from './music-theory';
+
+export interface ChordEvent {
+  nashville: NashvilleNumber;
+  bars: number;
+  beats: number;
+}
+
+export type Instrument = 'synth' | 'clean-guitar' | 'pluck';
+
+export class AudioEngine {
+  private transport: typeof Tone.Transport;
+  private instrument: Tone.PolySynth | Tone.Sampler;
+  private currentInstrumentType: Instrument = 'synth';
+  private instrumentEffects: Tone.Chorus | Tone.Reverb | null = null;
+  private metronome: Tone.Synth;
+  private samplerLoaded: boolean = false;
+  
+  // Volume controls
+  private instrumentVolume: Tone.Volume;
+  private metronomeVolume: Tone.Volume;
+  
+  private chordEvents: ChordEvent[] = [];
+  private currentKey: string = 'C';
+  private tempo: number = 120;
+  private isPlaying: boolean = false;
+  private currentChordIndex: number = 0;
+  private currentBeat: number = 0;
+  private totalBeats: number = 0;
+  
+  private onChordChange?: (nashville: NashvilleNumber, chordName: string, index: number) => void;
+  private onBeatChange?: (beat: number) => void;
+
+  constructor() {
+    // Initialize Tone.js
+    Tone.setContext(new Tone.Context({ latencyHint: 'interactive' }));
+
+    // Create volume nodes
+    this.instrumentVolume = new Tone.Volume(0).toDestination(); // 0 dB = full volume
+    this.metronomeVolume = new Tone.Volume(-6).toDestination(); // -6 dB = slightly quieter
+
+    // Initialize with default synth instrument
+    const defaultInst = this.createInstrument('synth');
+    this.instrument = defaultInst.instrument;
+
+    // Metronome - sharp click sound
+    this.metronome = new Tone.Synth({
+      oscillator: {
+        type: 'triangle',
+      },
+      envelope: {
+        attack: 0.001,
+        decay: 0.03,
+        sustain: 0,
+        release: 0.01,
+      },
+    }).connect(this.metronomeVolume);
+
+    this.transport = Tone.Transport;
+    this.transport.bpm.value = this.tempo;
+  }
+
+  // Volume control methods (0-100 scale)
+  setInstrumentVolume(volume: number) {
+    // Convert 0-100 to decibels (-60 to 0)
+    const db = volume === 0 ? -Infinity : (volume / 100) * 60 - 60;
+    this.instrumentVolume.volume.value = db;
+  }
+
+  setMetronomeVolume(volume: number) {
+    // Convert 0-100 to decibels (-60 to 0)
+    const db = volume === 0 ? -Infinity : (volume / 100) * 60 - 60;
+    this.metronomeVolume.volume.value = db;
+  }
+
+  setChordChangeCallback(callback: (nashville: NashvilleNumber, chordName: string, index: number) => void) {
+    this.onChordChange = (nashville, chordName) => {
+      callback(nashville, chordName, this.currentChordIndex);
+    };
+  }
+
+  setBeatChangeCallback(callback: (beat: number) => void) {
+    this.onBeatChange = callback;
+  }
+
+  async start() {
+    if (this.isPlaying) return;
+    
+    await Tone.start();
+    console.warn('[AudioEngine] Tone.start() called, AudioContext state:', Tone.context.state);
+    
+    this.isPlaying = true;
+    this.currentChordIndex = 0;
+    this.currentBeat = 0;
+    
+    // Calculate total duration in measures (bars)
+    const totalMeasures = this.chordEvents.reduce((sum, chord) => sum + chord.bars, 0);
+    const extraBeats = this.chordEvents.reduce((sum, chord) => sum + chord.beats, 0);
+    const totalBars = totalMeasures + Math.ceil(extraBeats / 4);
+    
+    console.warn('[AudioEngine] Total measures:', totalMeasures, 'Extra beats:', extraBeats, 'Total bars:', totalBars);
+    
+    if (totalBars === 0) {
+      console.warn('[AudioEngine] No bars to play, returning');
+      return;
+    }
+    
+    // Cancel any previous events
+    this.transport.cancel();
+    
+    // Reset transport position
+    this.transport.position = 0;
+    
+    // Set up loop using numeric values for reliability
+    this.transport.loopStart = 0;
+    this.transport.loopEnd = `${totalBars}m`;
+    this.transport.loop = true;
+    
+    console.warn('[AudioEngine] Loop setup - loopEnd:', this.transport.loopEnd, 'loop:', this.transport.loop);
+    
+    this.scheduleEvents();
+    
+    // Trigger first chord callback immediately for UI update
+    if (this.chordEvents.length > 0 && this.onChordChange) {
+      const firstChord = this.chordEvents[0];
+      const chordName = this.getChordName(firstChord.nashville);
+      this.onChordChange(firstChord.nashville, chordName, 0);
+    }
+    
+    this.transport.start();
+    console.warn('[AudioEngine] Transport started, state:', this.transport.state);
+  }
+
+  stop() {
+    if (!this.isPlaying) return;
+    
+    this.transport.stop();
+    this.transport.cancel();
+    this.transport.loop = false;
+    this.isPlaying = false;
+    this.currentChordIndex = 0;
+    this.currentBeat = 0;
+  }
+
+  setTempo(bpm: number) {
+    this.tempo = bpm;
+    this.transport.bpm.value = bpm;
+  }
+
+  setKey(key: string) {
+    this.currentKey = key;
+  }
+
+  setInstrument(instrumentType: Instrument) {
+    if (this.currentInstrumentType === instrumentType) return;
+    
+    // Dispose old instrument and effects
+    this.instrument.dispose();
+    if (this.instrumentEffects) {
+      if (this.instrumentEffects instanceof Tone.Chorus) {
+        this.instrumentEffects.dispose();
+      } else if (this.instrumentEffects instanceof Tone.Reverb) {
+        this.instrumentEffects.dispose();
+      }
+      this.instrumentEffects = null;
+    }
+    
+    // Create new instrument
+    this.currentInstrumentType = instrumentType;
+    const result = this.createInstrument(instrumentType);
+    this.instrument = result.instrument;
+    this.instrumentEffects = result.effects || null;
+  }
+
+  private createInstrument(type: Instrument): { instrument: Tone.PolySynth | Tone.Sampler; effects?: Tone.Chorus | Tone.Reverb } {
+    switch (type) {
+      case 'clean-guitar':
+        // Use real guitar samples from tonejs-instruments library
+        // Samples are hosted on GitHub Pages
+        const baseUrl = 'https://nbrosowsky.github.io/tonejs-instruments/samples/guitar-electric/';
+        
+        this.samplerLoaded = false;
+        
+        // Create sampler with electric guitar samples
+        // We only need a few samples - Tone.js will interpolate the rest
+        const guitar = new Tone.Sampler({
+          urls: {
+            'A2': 'A2.mp3',
+            'A3': 'A3.mp3',
+            'A4': 'A4.mp3',
+            'C3': 'C3.mp3',
+            'C4': 'C4.mp3',
+            'C5': 'C5.mp3',
+            'D#3': 'Ds3.mp3',
+            'D#4': 'Ds4.mp3',
+            'F#2': 'Fs2.mp3',
+            'F#3': 'Fs3.mp3',
+            'F#4': 'Fs4.mp3',
+          },
+          baseUrl: baseUrl,
+          release: 6, // Long release for sustained ringing
+          onload: () => {
+            console.log('Electric guitar samples loaded');
+            this.samplerLoaded = true;
+          },
+        });
+        
+        // Add chorus for richer, fuller sound
+        const chorus = new Tone.Chorus({
+          frequency: 1.2,
+          delayTime: 4,
+          depth: 0.5,
+          wet: 0.4,
+        }).start();
+        
+        // Add longer reverb for sustained resonance like real guitar
+        const reverb = new Tone.Reverb({
+          decay: 4, // Long decay for sustained ring
+          wet: 0.4,
+        });
+        reverb.generate().then(() => {
+          // Reverb is ready
+        });
+        
+        // Connect: guitar -> chorus -> reverb -> volume -> output
+        guitar.connect(chorus);
+        chorus.connect(reverb);
+        reverb.connect(this.instrumentVolume);
+        
+        return { instrument: guitar, effects: chorus };
+        
+      case 'pluck':
+        // Use acoustic guitar samples for a different sound
+        const acousticBaseUrl = 'https://nbrosowsky.github.io/tonejs-instruments/samples/guitar-acoustic/';
+        
+        this.samplerLoaded = false;
+        
+        const acoustic = new Tone.Sampler({
+          urls: {
+            'A2': 'A2.mp3',
+            'A3': 'A3.mp3',
+            'A4': 'A4.mp3',
+            'C3': 'C3.mp3',
+            'C4': 'C4.mp3',
+            'D3': 'D3.mp3',
+            'D4': 'D4.mp3',
+            'E2': 'E2.mp3',
+            'E3': 'E3.mp3',
+            'E4': 'E4.mp3',
+            'G2': 'G2.mp3',
+            'G3': 'G3.mp3',
+            'G4': 'G4.mp3',
+          },
+          baseUrl: acousticBaseUrl,
+          release: 6, // Long release for sustained ringing
+          onload: () => {
+            console.log('Acoustic guitar samples loaded');
+            this.samplerLoaded = true;
+          },
+        });
+        
+        // Add reverb for natural acoustic resonance
+        const acousticReverb = new Tone.Reverb({
+          decay: 3.5,
+          wet: 0.35,
+        });
+        acousticReverb.generate().then(() => {});
+        
+        acoustic.connect(acousticReverb);
+        acousticReverb.connect(this.instrumentVolume);
+        return { instrument: acoustic };
+        
+      case 'synth':
+      default:
+        this.samplerLoaded = true; // Synth doesn't need sample loading
+        
+        // Rich synth sound with sawtooth and filter
+        const synth = new Tone.PolySynth({
+          maxPolyphony: 6,
+          voice: Tone.Synth,
+        });
+        synth.set({
+          oscillator: {
+            type: 'sawtooth',
+          },
+          envelope: {
+            attack: 0.01,
+            decay: 0.3,
+            sustain: 0.5,
+            release: 0.8,
+          },
+        });
+        synth.connect(this.instrumentVolume);
+        return { instrument: synth };
+    }
+  }
+
+  setChordProgression(chords: ChordEvent[]) {
+    this.chordEvents = chords;
+    this.totalBeats = chords.reduce((sum, chord) => sum + (chord.bars * 4) + chord.beats, 0);
+    
+    // Update loop end if playing
+    if (this.isPlaying) {
+      const totalMeasures = chords.reduce((sum, chord) => sum + chord.bars, 0);
+      const extraBeats = chords.reduce((sum, chord) => sum + chord.beats, 0);
+      const totalBars = totalMeasures + Math.ceil(extraBeats / 4);
+      
+      if (totalBars > 0) {
+        this.transport.loopEnd = `${totalBars}m`;
+        this.transport.cancel();
+        this.scheduleEvents();
+      }
+    }
+  }
+
+  private scheduleEvents() {
+    console.warn('[AudioEngine] scheduleEvents() called, chordEvents:', this.chordEvents.length);
+    let beatOffset = 0;
+    
+    for (let i = 0; i < this.chordEvents.length; i++) {
+      const chord = this.chordEvents[i];
+      const chordBeats = (chord.bars * 4) + chord.beats;
+      
+      // Use measures notation for chord scheduling
+      // Each chord.bars maps directly to measures
+      const measureOffset = beatOffset / 4; // Convert beats to measures (4/4 time)
+      const startTime = `${measureOffset}m`;
+      
+      console.warn(`[AudioEngine] Scheduling chord ${i} (nashville: ${chord.nashville}) at ${startTime}`);
+      
+      // Capture loop variable for closure
+      const chordIndex = i;
+      const nashville = chord.nashville;
+      
+      // Schedule chord change
+      this.transport.schedule((time) => {
+        console.warn(`[AudioEngine] Playing chord ${chordIndex} at time ${time}`);
+        this.currentChordIndex = chordIndex;
+        this.playChord(nashville, time);
+        
+        // Use setTimeout to defer UI updates to the next tick
+        // This ensures React state updates work from audio callbacks
+        setTimeout(() => {
+          console.warn(`[AudioEngine] Timeout callback for chord ${chordIndex}`);
+          if (this.onChordChange) {
+            const chordName = this.getChordName(nashville);
+            console.warn(`[AudioEngine] Calling onChordChange with chordName: ${chordName}`);
+            this.onChordChange(nashville, chordName, chordIndex);
+          }
+        }, 0);
+      }, startTime);
+      
+      // Schedule beats within this chord
+      for (let beat = 0; beat < chordBeats; beat++) {
+        const absoluteBeat = beatOffset + beat;
+        const beatTime = this.beatsToTime(absoluteBeat);
+        const beatNum = beat;
+        
+        // Schedule main beat (metronome click)
+        this.transport.schedule((time) => {
+          this.currentBeat = beatNum;
+          this.playBeat(beatNum, time);
+          
+          if (this.onBeatChange) {
+            this.onBeatChange(beatNum);
+          }
+        }, beatTime);
+      }
+      
+      beatOffset += chordBeats;
+    }
+    console.warn('[AudioEngine] Finished scheduling, total beatOffset:', beatOffset);
+  }
+
+  private beatsToTime(beats: number): string {
+    // Convert beats to Tone time notation using bars:beats:sixteenths format
+    // This is more reliable than building long "4n + 4n + ..." strings
+    // In 4/4 time: 4 beats = 1 bar
+    if (beats === 0) return '0:0:0';
+    
+    const bars = Math.floor(beats / 4);
+    const remainingBeats = beats % 4;
+    
+    // Format: "bars:beats:sixteenths"
+    return `${bars}:${remainingBeats}:0`;
+  }
+
+  private playChord(nashville: NashvilleNumber, time: number) {
+    const chord = nashvilleToChord(nashville, this.currentKey as Key);
+    const midiNotes = chordToMidiNotes(chord, 3); // Lower octave for guitar
+    
+    // Convert MIDI notes to frequencies
+    const frequencies = midiNotes.map(note => Tone.Frequency(note, 'midi').toFrequency());
+    
+    // Longer chord duration for better sustain
+    // '1n' = whole note, '2n' = half note, '1m' = one measure
+    const chordDuration = '2m'; // Hold for two full measures for extended sustain
+    
+    // Play chord with strummed effect for guitar
+    if (this.currentInstrumentType === 'clean-guitar') {
+      // More realistic strum - faster arpeggio with varying delays
+      frequencies.forEach((freq, index) => {
+        const strumDelay = index * 0.04; // Faster strum for more realistic feel
+        if (this.instrument instanceof Tone.Sampler) {
+          const noteName = Tone.Frequency(midiNotes[index], 'midi').toNote();
+          this.instrument.triggerAttackRelease(noteName, chordDuration, time + strumDelay);
+        } else {
+          this.instrument.triggerAttackRelease(freq, chordDuration, time + strumDelay);
+        }
+      });
+    } else if (this.instrument instanceof Tone.Sampler) {
+      // If using sampler, use note names
+      const noteNames = midiNotes.map(note => Tone.Frequency(note, 'midi').toNote());
+      noteNames.forEach((note, index) => {
+        this.instrument.triggerAttackRelease(note, chordDuration, time + (index * 0.03));
+      });
+    } else {
+      // Regular synth - slightly shorter for cleaner sound
+      frequencies.forEach((freq, index) => {
+        this.instrument.triggerAttackRelease(freq, '2n', time + (index * 0.03));
+      });
+    }
+  }
+
+  private playBeat(beat: number, time: number) {
+    const beatInMeasure = beat % 4;
+    
+    // Metronome - higher frequencies for sharp tick, accent on beat 1
+    const metronomeFreq = beatInMeasure === 0 ? 'G6' : 'G5';
+    this.metronome.triggerAttackRelease(metronomeFreq, '64n', time);
+  }
+
+  private getChordName(nashville: NashvilleNumber): string {
+    const chord = nashvilleToChord(nashville, this.currentKey as Key);
+    return chord.name;
+  }
+
+  getCurrentChordIndex(): number {
+    return this.currentChordIndex;
+  }
+
+  getCurrentBeat(): number {
+    return this.currentBeat;
+  }
+
+  getIsPlaying(): boolean {
+    return this.isPlaying;
+  }
+}
