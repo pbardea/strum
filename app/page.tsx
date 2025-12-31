@@ -761,7 +761,6 @@ export default function Home() {
               value={tempo}
               onChange={(e) => setTempo(parseInt(e.target.value))}
               className="w-full h-2 bg-zinc-700 rounded-lg appearance-none cursor-pointer accent-amber-500 mt-2"
-              disabled={isPlaying}
             />
           </div>
 
