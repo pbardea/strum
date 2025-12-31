@@ -21,8 +21,12 @@ export default function Home() {
   const [metronomeVolume, setMetronomeVolume] = useState(50);
   const [currentChordIndex, setCurrentChordIndex] = useState(0);
   const [currentChordName, setCurrentChordName] = useState('');
+  const [progress, setProgress] = useState(0);
 
   const audioEngineRef = useRef<AudioEngine | null>(null);
+
+  // Calculate total bars for timeline
+  const totalBars = chords.reduce((sum, chord) => sum + chord.bars, 0);
 
   useEffect(() => {
     // Initialize audio engine
@@ -30,24 +34,22 @@ export default function Home() {
     const engine = audioEngineRef.current;
 
     engine.setChordChangeCallback((nashville, chordName, index) => {
-      console.warn('[Page] Callback received:', chordName, index);
       setCurrentChordName(chordName);
       setCurrentChordIndex(index);
     });
 
     engine.setBeatChangeCallback(() => {
-      // Could add visual beat indicator here if needed
+      // Visual beat indicator handled by progress
+    });
+
+    engine.setProgressChangeCallback((prog) => {
+      setProgress(prog);
     });
 
     return () => {
       engine.stop();
     };
   }, []);
-  
-  // Debug: log state changes
-  useEffect(() => {
-    console.warn('[Page] State updated - isPlaying:', isPlaying, 'currentChordName:', currentChordName);
-  }, [isPlaying, currentChordName]);
 
   useEffect(() => {
     if (audioEngineRef.current) {
@@ -91,12 +93,12 @@ export default function Home() {
     if (audioEngineRef.current) {
       audioEngineRef.current.stop();
       setIsPlaying(false);
+      setProgress(0);
     }
   };
 
   const handleChordChange = (newChords: ChordEvent[]) => {
     setChords(newChords);
-    // Update current chord index based on progression
     if (newChords.length > 0) {
       setCurrentChordIndex(0);
       const firstChord = nashvilleToChord(newChords[0].nashville, key);
@@ -104,19 +106,162 @@ export default function Home() {
     }
   };
 
+  // Calculate chord positions for timeline
+  const getChordPositions = () => {
+    let offset = 0;
+    return chords.map((chord, index) => {
+      const position = { start: offset / totalBars, width: chord.bars / totalBars, index };
+      offset += chord.bars;
+      return position;
+    });
+  };
+
+  const chordPositions = getChordPositions();
+
   return (
     <div className="min-h-screen bg-zinc-900 text-white">
-      <div className="container mx-auto px-4 py-8 max-w-4xl">
-        <header className="mb-8 text-center">
-          <h1 className="text-5xl font-bold mb-2 bg-gradient-to-r from-amber-400 to-amber-600 bg-clip-text text-transparent">
+      <div className="container mx-auto px-4 py-6 max-w-4xl">
+        {/* Header */}
+        <header className="mb-6 text-center">
+          <h1 className="text-4xl font-bold mb-1 bg-gradient-to-r from-amber-400 to-amber-600 bg-clip-text text-transparent">
             Strum
           </h1>
-          <p className="text-zinc-400">Pentatonic Practice Companion</p>
+          <p className="text-zinc-500 text-sm">Pentatonic Practice Companion</p>
         </header>
 
-        <div className="space-y-8">
-          {/* Key, Tempo, and Instrument Controls */}
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+        {/* Play/Pause at Top */}
+        <div className="flex justify-center mb-6">
+          <Transport isPlaying={isPlaying} onPlay={handlePlay} onPause={handlePause} />
+        </div>
+
+        {/* Current Chord + Volume Controls Row */}
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
+          {/* Volume Controls - Compact */}
+          <div className="bg-zinc-800/50 rounded-lg p-3 border border-zinc-700/50">
+            <div className="flex items-center gap-2 mb-1">
+              <span className="text-xs">🎸</span>
+              <input
+                type="range"
+                min="0"
+                max="100"
+                value={chordVolume}
+                onChange={(e) => setChordVolume(parseInt(e.target.value))}
+                className="flex-1 h-1.5 bg-zinc-700 rounded-lg appearance-none cursor-pointer accent-amber-500"
+              />
+              <span className="text-xs text-zinc-500 w-8">{chordVolume}%</span>
+            </div>
+            <div className="flex items-center gap-2">
+              <span className="text-xs">🥁</span>
+              <input
+                type="range"
+                min="0"
+                max="100"
+                value={metronomeVolume}
+                onChange={(e) => setMetronomeVolume(parseInt(e.target.value))}
+                className="flex-1 h-1.5 bg-zinc-700 rounded-lg appearance-none cursor-pointer accent-amber-500"
+              />
+              <span className="text-xs text-zinc-500 w-8">{metronomeVolume}%</span>
+            </div>
+          </div>
+
+          {/* Current Chord Display - Center */}
+          <div className="bg-zinc-800 rounded-lg p-4 border-2 border-amber-500/50 shadow-lg shadow-amber-500/10 text-center">
+            <p className="text-xs text-zinc-500 mb-1">Current Chord</p>
+            <p className="text-3xl font-bold text-amber-400">
+              {isPlaying && currentChordName ? currentChordName : '—'}
+            </p>
+            {isPlaying && chords[currentChordIndex]?.nashville && (
+              <p className="text-xs text-zinc-500 mt-1">
+                Nashville: {chords[currentChordIndex].nashville}
+              </p>
+            )}
+          </div>
+
+          {/* Settings Summary - Compact */}
+          <div className="bg-zinc-800/50 rounded-lg p-3 border border-zinc-700/50 text-sm">
+            <div className="flex justify-between items-center mb-1">
+              <span className="text-zinc-500">Key:</span>
+              <span className="text-amber-400 font-medium">{key}</span>
+            </div>
+            <div className="flex justify-between items-center mb-1">
+              <span className="text-zinc-500">Tempo:</span>
+              <span className="text-amber-400 font-medium">{tempo} BPM</span>
+            </div>
+            <div className="flex justify-between items-center">
+              <span className="text-zinc-500">Bars:</span>
+              <span className="text-amber-400 font-medium">{totalBars}</span>
+            </div>
+          </div>
+        </div>
+
+        {/* Timeline Visualization */}
+        <div className="bg-zinc-800 rounded-lg p-4 border border-zinc-700 mb-6">
+          <div className="relative h-16">
+            {/* Chord blocks */}
+            <div className="absolute inset-0 flex">
+              {chordPositions.map((pos, index) => {
+                const chordInfo = nashvilleToChord(chords[index].nashville, key);
+                const isActive = isPlaying && index === currentChordIndex;
+                return (
+                  <div
+                    key={index}
+                    className={`
+                      relative h-full border-r border-zinc-600 last:border-r-0
+                      transition-all duration-150
+                      ${isActive ? 'bg-amber-500/30' : 'bg-zinc-700/30'}
+                    `}
+                    style={{ width: `${pos.width * 100}%` }}
+                  >
+                    <div className="absolute inset-0 flex flex-col items-center justify-center">
+                      <span className={`text-lg font-bold ${isActive ? 'text-amber-400' : 'text-zinc-400'}`}>
+                        {chordInfo.name}
+                      </span>
+                      <span className="text-xs text-zinc-500">
+                        {chords[index].bars} bar{chords[index].bars > 1 ? 's' : ''}
+                      </span>
+                    </div>
+                    {/* Measure dividers */}
+                    {chords[index].bars > 1 && (
+                      <div className="absolute inset-0 flex">
+                        {Array.from({ length: chords[index].bars - 1 }).map((_, i) => (
+                          <div
+                            key={i}
+                            className="border-r border-zinc-600/50"
+                            style={{ width: `${100 / chords[index].bars}%` }}
+                          />
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+            
+            {/* Playhead cursor */}
+            {isPlaying && (
+              <div
+                className="absolute top-0 bottom-0 w-0.5 bg-amber-400 shadow-lg shadow-amber-400/50 z-10 transition-all duration-75"
+                style={{ left: `${progress * 100}%` }}
+              >
+                <div className="absolute -top-1 left-1/2 -translate-x-1/2 w-2 h-2 bg-amber-400 rounded-full" />
+                <div className="absolute -bottom-1 left-1/2 -translate-x-1/2 w-2 h-2 bg-amber-400 rounded-full" />
+              </div>
+            )}
+          </div>
+          
+          {/* Bar numbers */}
+          <div className="flex mt-2 text-xs text-zinc-600">
+            {Array.from({ length: totalBars }).map((_, i) => (
+              <div key={i} className="flex-1 text-center">
+                {i + 1}
+              </div>
+            ))}
+          </div>
+        </div>
+
+        {/* Settings Controls */}
+        <div className="space-y-6">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             <div>
               <label className="block text-sm font-medium text-zinc-400 mb-2">
                 Key
@@ -124,7 +269,7 @@ export default function Home() {
               <select
                 value={key}
                 onChange={(e) => setKey(e.target.value as Key)}
-                className="w-full px-4 py-3 bg-zinc-800 border border-zinc-700 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-amber-500"
+                className="w-full px-4 py-2.5 bg-zinc-800 border border-zinc-700 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-amber-500"
                 disabled={isPlaying}
               >
                 {getAllKeys().map((k) => (
@@ -148,10 +293,6 @@ export default function Home() {
                 className="w-full h-2 bg-zinc-700 rounded-lg appearance-none cursor-pointer accent-amber-500"
                 disabled={isPlaying}
               />
-              <div className="flex justify-between text-xs text-zinc-500 mt-1">
-                <span>60</span>
-                <span>200</span>
-              </div>
             </div>
 
             <div>
@@ -161,107 +302,19 @@ export default function Home() {
               <select
                 value={instrument}
                 onChange={(e) => setInstrument(e.target.value as Instrument)}
-                className="w-full px-4 py-3 bg-zinc-800 border border-zinc-700 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-amber-500"
+                className="w-full px-4 py-2.5 bg-zinc-800 border border-zinc-700 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-amber-500"
                 disabled={isPlaying}
               >
-                <option value="clean-guitar">Electric Guitar (samples)</option>
-                <option value="pluck">Acoustic Guitar (samples)</option>
+                <option value="clean-guitar">Electric Guitar</option>
+                <option value="pluck">Acoustic Guitar</option>
                 <option value="synth">Synth</option>
               </select>
             </div>
           </div>
 
-          {/* Volume Controls */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6 bg-zinc-800 rounded-lg p-4 border border-zinc-700">
-            <div>
-              <label className="block text-sm font-medium text-zinc-400 mb-2">
-                🎸 Chord Volume: {chordVolume}%
-              </label>
-              <input
-                type="range"
-                min="0"
-                max="100"
-                value={chordVolume}
-                onChange={(e) => setChordVolume(parseInt(e.target.value))}
-                className="w-full h-2 bg-zinc-700 rounded-lg appearance-none cursor-pointer accent-amber-500"
-              />
-              <div className="flex justify-between text-xs text-zinc-500 mt-1">
-                <span>0</span>
-                <span>100</span>
-              </div>
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium text-zinc-400 mb-2">
-                🥁 Metronome Volume: {metronomeVolume}%
-              </label>
-              <input
-                type="range"
-                min="0"
-                max="100"
-                value={metronomeVolume}
-                onChange={(e) => setMetronomeVolume(parseInt(e.target.value))}
-                className="w-full h-2 bg-zinc-700 rounded-lg appearance-none cursor-pointer accent-amber-500"
-              />
-              <div className="flex justify-between text-xs text-zinc-500 mt-1">
-                <span>0</span>
-                <span>100</span>
-              </div>
-            </div>
-          </div>
-
-          {/* Current Chord Display */}
-          {isPlaying && currentChordName && (
-            <div className="text-center py-6 bg-zinc-800 rounded-lg border-2 border-amber-500 shadow-lg shadow-amber-500/20">
-              <p className="text-sm text-zinc-400 mb-2">Current Chord</p>
-              <p className="text-4xl font-bold text-amber-400">{currentChordName}</p>
-              <p className="text-sm text-zinc-500 mt-2">
-                {chords[currentChordIndex]?.nashville && (
-                  <>Nashville: {chords[currentChordIndex].nashville}</>
-                )}
-              </p>
-            </div>
-          )}
-
-          {/* Transport Controls */}
-          <div className="flex justify-center py-8">
-            <Transport isPlaying={isPlaying} onPlay={handlePlay} onPause={handlePause} />
-          </div>
-
           {/* Chord Builder */}
-          <div className="bg-zinc-800 rounded-lg p-6 border border-zinc-700">
+          <div className="bg-zinc-800 rounded-lg p-5 border border-zinc-700">
             <ChordBuilder chords={chords} onChange={handleChordChange} />
-          </div>
-
-          {/* Chord Progression Preview */}
-          <div className="bg-zinc-800 rounded-lg p-6 border border-zinc-700">
-            <h2 className="text-xl font-semibold text-amber-200 mb-4">Progression Preview</h2>
-            <div className="flex flex-wrap gap-3">
-              {chords.map((chord, index) => {
-                const chordInfo = nashvilleToChord(chord.nashville, key);
-                const duration = `${chord.bars}${chord.beats > 0 ? `+${chord.beats}` : ''}`;
-                return (
-                  <div
-                    key={index}
-                    className={`
-                      px-4 py-2 rounded-lg border-2 transition-all
-                      ${
-                        isPlaying && index === currentChordIndex
-                          ? 'border-amber-500 bg-amber-500/20 shadow-lg shadow-amber-500/30'
-                          : 'border-zinc-600 bg-zinc-900'
-                      }
-                    `}
-                  >
-                    <div className="text-center">
-                      <div className="text-2xl font-bold text-amber-400">{chordInfo.name}</div>
-                      <div className="text-xs text-zinc-500 mt-1">
-                        {chord.nashville} • {duration}
-                      </div>
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
           </div>
         </div>
       </div>

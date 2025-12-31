@@ -8,6 +8,7 @@ export interface ChordEvent {
 }
 
 export type Instrument = 'synth' | 'clean-guitar' | 'pluck';
+export type StrumFrequency = 1 | 2 | 4; // Strum every 1, 2, or 4 beats
 
 export class AudioEngine {
   private transport: typeof Tone.Transport;
@@ -24,6 +25,7 @@ export class AudioEngine {
   private chordEvents: ChordEvent[] = [];
   private currentKey: string = 'C';
   private tempo: number = 120;
+  private strumFrequency: StrumFrequency = 4; // Default: strum every 4 beats (once per measure)
   private isPlaying: boolean = false;
   private currentChordIndex: number = 0;
   private currentBeat: number = 0;
@@ -31,6 +33,7 @@ export class AudioEngine {
   
   private onChordChange?: (nashville: NashvilleNumber, chordName: string, index: number) => void;
   private onBeatChange?: (beat: number) => void;
+  private onProgressChange?: (progress: number) => void;
 
   constructor() {
     // Initialize Tone.js
@@ -82,6 +85,10 @@ export class AudioEngine {
 
   setBeatChangeCallback(callback: (beat: number) => void) {
     this.onBeatChange = callback;
+  }
+
+  setProgressChangeCallback(callback: (progress: number) => void) {
+    this.onProgressChange = callback;
   }
 
   async start() {
@@ -150,6 +157,15 @@ export class AudioEngine {
 
   setKey(key: string) {
     this.currentKey = key;
+  }
+
+  setStrumFrequency(frequency: StrumFrequency) {
+    this.strumFrequency = frequency;
+    // Reschedule if playing
+    if (this.isPlaying) {
+      this.transport.cancel();
+      this.scheduleEvents();
+    }
   }
 
   setInstrument(instrumentType: Instrument) {
@@ -321,9 +337,9 @@ export class AudioEngine {
     for (let i = 0; i < this.chordEvents.length; i++) {
       const chord = this.chordEvents[i];
       const chordBeats = (chord.bars * 4) + chord.beats;
+      const chordBars = chord.bars + (chord.beats > 0 ? 1 : 0);
       
       // Use measures notation for chord scheduling
-      // Each chord.bars maps directly to measures
       const measureOffset = beatOffset / 4; // Convert beats to measures (4/4 time)
       const startTime = `${measureOffset}m`;
       
@@ -333,38 +349,53 @@ export class AudioEngine {
       const chordIndex = i;
       const nashville = chord.nashville;
       
-      // Schedule chord change
+      // Schedule chord change callback (UI update)
       this.transport.schedule((time) => {
-        console.warn(`[AudioEngine] Playing chord ${chordIndex} at time ${time}`);
+        console.warn(`[AudioEngine] Chord change ${chordIndex} at time ${time}`);
         this.currentChordIndex = chordIndex;
-        this.playChord(nashville, time);
         
-        // Use setTimeout to defer UI updates to the next tick
-        // This ensures React state updates work from audio callbacks
         setTimeout(() => {
-          console.warn(`[AudioEngine] Timeout callback for chord ${chordIndex}`);
           if (this.onChordChange) {
             const chordName = this.getChordName(nashville);
-            console.warn(`[AudioEngine] Calling onChordChange with chordName: ${chordName}`);
             this.onChordChange(nashville, chordName, chordIndex);
           }
         }, 0);
       }, startTime);
       
-      // Schedule beats within this chord
+      // Schedule strums based on strumFrequency setting
+      // strumFrequency: 1 = every beat, 2 = every 2 beats, 4 = every measure
+      for (let beat = 0; beat < chordBeats; beat += this.strumFrequency) {
+        const strumBeatOffset = beatOffset + beat;
+        const strumTime = this.beatsToTime(strumBeatOffset);
+        const remainingBeats = chordBeats - beat;
+        const durationBeats = Math.min(this.strumFrequency, remainingBeats);
+        
+        this.transport.schedule((time) => {
+          console.warn(`[AudioEngine] Strumming chord ${chordIndex} at beat ${strumBeatOffset}`);
+          this.playChord(nashville, time, durationBeats / 4); // Convert beats to bars for duration
+        }, strumTime);
+      }
+      
+      // Schedule beats within this chord (for metronome and progress)
       for (let beat = 0; beat < chordBeats; beat++) {
         const absoluteBeat = beatOffset + beat;
         const beatTime = this.beatsToTime(absoluteBeat);
         const beatNum = beat;
+        const progress = absoluteBeat / this.totalBeats;
         
-        // Schedule main beat (metronome click)
+        // Schedule main beat (metronome click + progress update)
         this.transport.schedule((time) => {
           this.currentBeat = beatNum;
           this.playBeat(beatNum, time);
           
-          if (this.onBeatChange) {
-            this.onBeatChange(beatNum);
-          }
+          setTimeout(() => {
+            if (this.onBeatChange) {
+              this.onBeatChange(beatNum);
+            }
+            if (this.onProgressChange) {
+              this.onProgressChange(progress);
+            }
+          }, 0);
         }, beatTime);
       }
       
@@ -386,16 +417,15 @@ export class AudioEngine {
     return `${bars}:${remainingBeats}:0`;
   }
 
-  private playChord(nashville: NashvilleNumber, time: number) {
+  private playChord(nashville: NashvilleNumber, time: number, durationBars: number = 1) {
     const chord = nashvilleToChord(nashville, this.currentKey as Key);
     const midiNotes = chordToMidiNotes(chord, 3); // Lower octave for guitar
     
     // Convert MIDI notes to frequencies
     const frequencies = midiNotes.map(note => Tone.Frequency(note, 'midi').toFrequency());
     
-    // Longer chord duration for better sustain
-    // '1n' = whole note, '2n' = half note, '1m' = one measure
-    const chordDuration = '2m'; // Hold for two full measures for extended sustain
+    // Duration based on remaining bars - sustain for the full duration
+    const chordDuration = `${durationBars}m`;
     
     // Play chord with strummed effect for guitar
     if (this.currentInstrumentType === 'clean-guitar') {
@@ -416,9 +446,9 @@ export class AudioEngine {
         this.instrument.triggerAttackRelease(note, chordDuration, time + (index * 0.03));
       });
     } else {
-      // Regular synth - slightly shorter for cleaner sound
+      // Regular synth
       frequencies.forEach((freq, index) => {
-        this.instrument.triggerAttackRelease(freq, '2n', time + (index * 0.03));
+        this.instrument.triggerAttackRelease(freq, chordDuration, time + (index * 0.03));
       });
     }
   }
