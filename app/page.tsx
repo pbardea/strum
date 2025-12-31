@@ -973,6 +973,7 @@ export default function Home() {
               <button
                 key={prog.id}
                 onClick={() => handleSelectProgression(prog.id)}
+                title={prog.name}
                 className={`relative px-3 py-2 text-xs rounded-lg transition-all text-left ${
                   currentProgressionId === prog.id
                     ? 'bg-amber-600 text-white'
