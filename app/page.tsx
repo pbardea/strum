@@ -35,12 +35,10 @@ const defaultSettings: StoredSettings = {
 
 function loadSettings(): StoredSettings {
   if (typeof window === 'undefined') return defaultSettings;
-  
   try {
     const stored = localStorage.getItem(STORAGE_KEY);
     if (stored) {
-      const parsed = JSON.parse(stored);
-      return { ...defaultSettings, ...parsed };
+      return { ...defaultSettings, ...JSON.parse(stored) };
     }
   } catch (e) {
     console.warn('Failed to load settings from localStorage:', e);
@@ -50,7 +48,6 @@ function loadSettings(): StoredSettings {
 
 function saveSettings(settings: Partial<StoredSettings>) {
   if (typeof window === 'undefined') return;
-  
   try {
     const current = loadSettings();
     const updated = { ...current, ...settings };
@@ -67,9 +64,9 @@ export default function Home() {
   const [tempo, setTempo] = useState(defaultSettings.tempo);
   const [instrument, setInstrument] = useState<Instrument>(defaultSettings.instrument);
   const [strumFrequency, setStrumFrequency] = useState<StrumFrequency>(defaultSettings.strumFrequency);
-  const [isPlaying, setIsPlaying] = useState(false);
   const [chordVolume, setChordVolume] = useState(defaultSettings.chordVolume);
   const [metronomeVolume, setMetronomeVolume] = useState(defaultSettings.metronomeVolume);
+  const [isPlaying, setIsPlaying] = useState(false);
   const [currentChordIndex, setCurrentChordIndex] = useState(0);
   const [currentChordName, setCurrentChordName] = useState('');
   const [progress, setProgress] = useState(0);
@@ -115,66 +112,47 @@ export default function Home() {
     };
   }, []);
 
-  // Save and apply key changes
+  // Sync settings with audio engine and save to localStorage
   useEffect(() => {
-    if (!isLoaded) return;
-    saveSettings({ key });
-    if (audioEngineRef.current) {
+    if (audioEngineRef.current && isLoaded) {
       audioEngineRef.current.setKey(key);
-    }
-  }, [key, isLoaded]);
-
-  // Save and apply chord changes
-  useEffect(() => {
-    if (!isLoaded) return;
-    saveSettings({ chords });
-    if (audioEngineRef.current) {
       audioEngineRef.current.setChordProgression(chords);
+      saveSettings({ key, chords });
     }
-  }, [chords, isLoaded]);
+  }, [key, chords, isLoaded]);
 
-  // Save and apply tempo changes
   useEffect(() => {
-    if (!isLoaded) return;
-    saveSettings({ tempo });
-    if (audioEngineRef.current) {
+    if (audioEngineRef.current && isLoaded) {
       audioEngineRef.current.setTempo(tempo);
+      saveSettings({ tempo });
     }
   }, [tempo, isLoaded]);
 
-  // Save and apply instrument changes
   useEffect(() => {
-    if (!isLoaded) return;
-    saveSettings({ instrument });
-    if (audioEngineRef.current) {
+    if (audioEngineRef.current && isLoaded) {
       audioEngineRef.current.setInstrument(instrument);
+      saveSettings({ instrument });
     }
   }, [instrument, isLoaded]);
 
-  // Save and apply strum frequency changes
   useEffect(() => {
-    if (!isLoaded) return;
-    saveSettings({ strumFrequency });
-    if (audioEngineRef.current) {
+    if (audioEngineRef.current && isLoaded) {
       audioEngineRef.current.setStrumFrequency(strumFrequency);
+      saveSettings({ strumFrequency });
     }
   }, [strumFrequency, isLoaded]);
 
-  // Save and apply chord volume changes
   useEffect(() => {
-    if (!isLoaded) return;
-    saveSettings({ chordVolume });
-    if (audioEngineRef.current) {
+    if (audioEngineRef.current && isLoaded) {
       audioEngineRef.current.setInstrumentVolume(chordVolume);
+      saveSettings({ chordVolume });
     }
   }, [chordVolume, isLoaded]);
 
-  // Save and apply metronome volume changes
   useEffect(() => {
-    if (!isLoaded) return;
-    saveSettings({ metronomeVolume });
-    if (audioEngineRef.current) {
+    if (audioEngineRef.current && isLoaded) {
       audioEngineRef.current.setMetronomeVolume(metronomeVolume);
+      saveSettings({ metronomeVolume });
     }
   }, [metronomeVolume, isLoaded]);
 
