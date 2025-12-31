@@ -925,9 +925,20 @@ export default function Home() {
           </div>
         </div>
 
-        {/* Pentatonic Scale Fretboard */}
+        {/* Chord Tones Fretboard */}
         <div className="mb-6">
-          <Fretboard keyRoot={key} mode={mode} />
+          {(() => {
+            const currentChord = chords[currentChordIndex] || chords[0];
+            if (!currentChord) return null;
+            const chordInfo = nashvilleToChord(currentChord.nashville, key, mode, currentChord.quality);
+            return (
+              <Fretboard 
+                chordRoot={chordInfo.root as Key} 
+                chordQuality={chordInfo.quality} 
+                chordName={chordInfo.name}
+              />
+            );
+          })()}
         </div>
 
         {/* Progression Selector */}

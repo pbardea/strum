@@ -1,10 +1,11 @@
 'use client';
 
-import { type Key, type KeyMode } from '@/lib/music-theory';
+import { type Key, type ChordQuality } from '@/lib/music-theory';
 
 interface FretboardProps {
-  keyRoot: Key;
-  mode: KeyMode;
+  chordRoot: Key;
+  chordQuality: ChordQuality;
+  chordName: string;
 }
 
 // Standard guitar tuning (low to high): E A D G B E
@@ -15,55 +16,62 @@ const NUM_FRETS = 15;
 
 const CHROMATIC_NOTES = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B'];
 
-// Major pentatonic intervals from root: 1, 2, 3, 5, 6 (semitones: 0, 2, 4, 7, 9)
-const MAJOR_PENTATONIC = [0, 2, 4, 7, 9];
-// Minor pentatonic intervals from root: 1, b3, 4, 5, b7 (semitones: 0, 3, 5, 7, 10)
-const MINOR_PENTATONIC = [0, 3, 5, 7, 10];
-
-// Notes to show faded (not in pentatonic but useful to know)
-// Major: 4th (5 semitones) and 7th (11 semitones)
-const MAJOR_FADED = [5, 11];
-// Minor: 2nd (2 semitones) and 6th (9 semitones)  
-const MINOR_FADED = [2, 9];
-
 function getNoteIndex(key: Key): number {
   return CHROMATIC_NOTES.indexOf(key);
 }
 
-function getScaleDegree(noteMidi: number, keyRoot: Key, mode: KeyMode): {
-  inPentatonic: boolean;
+function getChordTone(noteMidi: number, chordRoot: Key, chordQuality: ChordQuality): {
+  isChordTone: boolean;
   isRoot: boolean;
   isThird: boolean;
-  isFaded: boolean;
-  interval: number;
+  isFifth: boolean;
 } {
-  const keyIndex = getNoteIndex(keyRoot);
+  const rootIndex = getNoteIndex(chordRoot);
   const noteIndex = noteMidi % 12;
-  const interval = (noteIndex - keyIndex + 12) % 12;
+  const interval = (noteIndex - rootIndex + 12) % 12;
   
-  const pentatonic = mode === 'minor' ? MINOR_PENTATONIC : MAJOR_PENTATONIC;
-  const faded = mode === 'minor' ? MINOR_FADED : MAJOR_FADED;
-  
-  const inPentatonic = pentatonic.includes(interval);
   const isRoot = interval === 0;
-  // Third: major 3rd (4 semitones) for major, minor 3rd (3 semitones) for minor
-  const isThird = mode === 'major' ? interval === 4 : interval === 3;
-  const isFaded = faded.includes(interval);
   
-  return { inPentatonic, isRoot, isThird, isFaded, interval };
+  // Third depends on quality
+  let thirdInterval: number;
+  if (chordQuality === 'maj') {
+    thirdInterval = 4; // Major 3rd
+  } else if (chordQuality === 'min') {
+    thirdInterval = 3; // Minor 3rd
+  } else {
+    thirdInterval = 3; // Diminished also has minor 3rd
+  }
+  const isThird = interval === thirdInterval;
+  
+  // Fifth depends on quality
+  let fifthInterval: number;
+  if (chordQuality === 'dim') {
+    fifthInterval = 6; // Diminished 5th
+  } else {
+    fifthInterval = 7; // Perfect 5th
+  }
+  const isFifth = interval === fifthInterval;
+  
+  const isChordTone = isRoot || isThird || isFifth;
+  
+  return { isChordTone, isRoot, isThird, isFifth };
 }
 
-export default function Fretboard({ keyRoot, mode }: FretboardProps) {
+export default function Fretboard({ chordRoot, chordQuality, chordName }: FretboardProps) {
   const fretWidth = 100 / (NUM_FRETS + 1); // +1 for nut/open position
   
   // Fret markers (dots) at frets 3, 5, 7, 9, 12 (double), 15
   const fretMarkers = [3, 5, 7, 9, 15];
   const doubleFretMarkers = [12];
 
+  // Get interval names for legend
+  const thirdName = chordQuality === 'maj' ? '3rd' : 'b3rd';
+  const fifthName = chordQuality === 'dim' ? 'b5th' : '5th';
+
   return (
     <div className="bg-zinc-800 rounded-lg p-4 border border-zinc-700">
       <h3 className="text-sm font-medium text-zinc-400 mb-3">
-        {keyRoot} {mode === 'major' ? 'Major' : 'Minor'} Pentatonic
+        <span className="text-amber-400">{chordName}</span> chord tones
       </h3>
       
       <div className="relative overflow-x-auto">
@@ -153,24 +161,19 @@ export default function Fretboard({ keyRoot, mode }: FretboardProps) {
                   {/* Notes */}
                   {Array.from({ length: NUM_FRETS + 1 }).map((_, fret) => {
                     const noteMidi = openNote + fret;
-                    const { inPentatonic, isRoot, isThird, isFaded } = getScaleDegree(noteMidi, keyRoot, mode);
+                    const { isChordTone, isRoot, isThird, isFifth } = getChordTone(noteMidi, chordRoot, chordQuality);
                     
-                    if (!inPentatonic && !isFaded) return null;
+                    if (!isChordTone) return null;
                     
-                    let bgColor = 'bg-amber-500'; // Default pentatonic note
-                    let textColor = 'text-zinc-900';
-                    let opacity = '';
+                    let bgColor = 'bg-zinc-500';
+                    let textColor = 'text-white';
                     
                     if (isRoot) {
                       bgColor = 'bg-emerald-500';
-                      textColor = 'text-white';
                     } else if (isThird) {
                       bgColor = 'bg-purple-500';
-                      textColor = 'text-white';
-                    } else if (isFaded) {
-                      bgColor = 'bg-zinc-600';
-                      textColor = 'text-zinc-400';
-                      opacity = 'opacity-50';
+                    } else if (isFifth) {
+                      bgColor = 'bg-orange-500';
                     }
                     
                     const noteName = CHROMATIC_NOTES[noteMidi % 12];
@@ -178,13 +181,13 @@ export default function Fretboard({ keyRoot, mode }: FretboardProps) {
                     return (
                       <div
                         key={fret}
-                        className={`absolute w-5 h-5 rounded-full flex items-center justify-center text-[9px] font-bold ${bgColor} ${textColor} ${opacity}`}
+                        className={`absolute w-5 h-5 rounded-full flex items-center justify-center text-[9px] font-bold ${bgColor} ${textColor}`}
                         style={{
                           left: `calc(${(fret + 0.5) * fretWidth}% - 10px)`,
                           top: '50%',
                           transform: 'translateY(-50%)',
                         }}
-                        title={`${noteName} (fret ${fret})`}
+                        title={`${noteName} (fret ${fret}) - ${isRoot ? 'Root' : isThird ? thirdName : fifthName}`}
                       >
                         {noteName}
                       </div>
@@ -199,19 +202,15 @@ export default function Fretboard({ keyRoot, mode }: FretboardProps) {
           <div className="flex gap-4 mt-3 text-xs text-zinc-400">
             <div className="flex items-center gap-1">
               <div className="w-3 h-3 rounded-full bg-emerald-500" />
-              <span>Root (1)</span>
+              <span>Root ({chordRoot})</span>
             </div>
             <div className="flex items-center gap-1">
               <div className="w-3 h-3 rounded-full bg-purple-500" />
-              <span>{mode === 'major' ? '3rd' : 'b3rd'}</span>
+              <span>{thirdName}</span>
             </div>
             <div className="flex items-center gap-1">
-              <div className="w-3 h-3 rounded-full bg-amber-500" />
-              <span>Pentatonic</span>
-            </div>
-            <div className="flex items-center gap-1">
-              <div className="w-3 h-3 rounded-full bg-zinc-600 opacity-50" />
-              <span>{mode === 'major' ? '4th & 7th' : '2nd & 6th'} (outside)</span>
+              <div className="w-3 h-3 rounded-full bg-orange-500" />
+              <span>{fifthName}</span>
             </div>
           </div>
         </div>
