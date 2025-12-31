@@ -16,11 +16,13 @@ export class AudioEngine {
   private currentInstrumentType: Instrument = 'synth';
   private instrumentEffects: Tone.Chorus | Tone.Reverb | null = null;
   private metronome: Tone.Synth;
+  private bass: Tone.Synth;
   private samplerLoaded: boolean = false;
   
   // Volume controls
   private instrumentVolume: Tone.Volume;
   private metronomeVolume: Tone.Volume;
+  private bassVolume: Tone.Volume;
   
   private chordEvents: ChordEvent[] = [];
   private currentKey: string = 'C';
@@ -42,6 +44,7 @@ export class AudioEngine {
     // Create volume nodes
     this.instrumentVolume = new Tone.Volume(0).toDestination(); // 0 dB = full volume
     this.metronomeVolume = new Tone.Volume(-6).toDestination(); // -6 dB = slightly quieter
+    this.bassVolume = new Tone.Volume(-6).toDestination(); // -6 dB for bass
 
     // Initialize with default synth instrument
     const defaultInst = this.createInstrument('synth');
@@ -60,6 +63,19 @@ export class AudioEngine {
       },
     }).connect(this.metronomeVolume);
 
+    // Bass synth - deep, warm tone
+    this.bass = new Tone.Synth({
+      oscillator: {
+        type: 'triangle',
+      },
+      envelope: {
+        attack: 0.02,
+        decay: 0.3,
+        sustain: 0.4,
+        release: 0.8,
+      },
+    }).connect(this.bassVolume);
+
     this.transport = Tone.Transport;
     this.transport.bpm.value = this.tempo;
   }
@@ -75,6 +91,12 @@ export class AudioEngine {
     // Convert 0-100 to decibels (-60 to 0)
     const db = volume === 0 ? -Infinity : (volume / 100) * 60 - 60;
     this.metronomeVolume.volume.value = db;
+  }
+
+  setBassVolume(volume: number) {
+    // Convert 0-100 to decibels (-60 to 0)
+    const db = volume === 0 ? -Infinity : (volume / 100) * 60 - 60;
+    this.bassVolume.volume.value = db;
   }
 
   setChordChangeCallback(callback: (nashville: NashvilleNumber, chordName: string, index: number) => void) {
@@ -429,6 +451,10 @@ export class AudioEngine {
     
     // Compensate for sample latency - trigger 50ms early
     const adjustedTime = Math.max(0, time - 0.05);
+    
+    // Play bass - root note in low octave
+    const bassNote = `${chord.root}1`; // Octave 1 for deep bass
+    this.bass.triggerAttackRelease(bassNote, chordDuration, adjustedTime);
     
     // Play chord with strummed effect for guitar
     if (this.currentInstrumentType === 'clean-guitar') {

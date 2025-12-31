@@ -17,6 +17,7 @@ interface StoredSettings {
   strumFrequency: StrumFrequency;
   chordVolume: number;
   metronomeVolume: number;
+  bassVolume: number;
   currentProgressionId: string | null;
 }
 
@@ -117,6 +118,7 @@ const defaultSettings: StoredSettings = {
   strumFrequency: 4,
   chordVolume: 80,
   metronomeVolume: 50,
+  bassVolume: 60,
   currentProgressionId: PRESET_PROGRESSIONS[0].id,
 };
 
@@ -175,6 +177,7 @@ export default function Home() {
   const [strumFrequency, setStrumFrequency] = useState<StrumFrequency>(defaultSettings.strumFrequency);
   const [chordVolume, setChordVolume] = useState(defaultSettings.chordVolume);
   const [metronomeVolume, setMetronomeVolume] = useState(defaultSettings.metronomeVolume);
+  const [bassVolume, setBassVolume] = useState(defaultSettings.bassVolume);
   const [isPlaying, setIsPlaying] = useState(false);
   const [currentChordIndex, setCurrentChordIndex] = useState(0);
   const [currentChordName, setCurrentChordName] = useState('');
@@ -204,6 +207,7 @@ export default function Home() {
     setStrumFrequency(settings.strumFrequency);
     setChordVolume(settings.chordVolume);
     setMetronomeVolume(settings.metronomeVolume);
+    setBassVolume(settings.bassVolume);
     setCurrentProgressionId(settings.currentProgressionId);
     setSavedProgressions(loadSavedProgressions());
     setIsLoaded(true);
@@ -273,6 +277,13 @@ export default function Home() {
       saveSettings({ metronomeVolume });
     }
   }, [metronomeVolume, isLoaded]);
+
+  useEffect(() => {
+    if (audioEngineRef.current && isLoaded) {
+      audioEngineRef.current.setBassVolume(bassVolume);
+      saveSettings({ bassVolume });
+    }
+  }, [bassVolume, isLoaded]);
 
   const handlePlay = async () => {
     if (audioEngineRef.current) {
@@ -393,7 +404,7 @@ export default function Home() {
           {/* Volume Controls - Compact */}
           <div className="md:col-span-2 bg-zinc-800 rounded-lg p-3 border border-zinc-700">
             <p className="text-xs text-zinc-400 font-medium mb-2">Volume</p>
-            <div className="grid grid-cols-2 gap-3">
+            <div className="grid grid-cols-3 gap-3">
               <div>
                 <label className="block text-xs text-zinc-500 mb-1">
                   🎸 Chords: {chordVolume}%
@@ -409,7 +420,20 @@ export default function Home() {
               </div>
               <div>
                 <label className="block text-xs text-zinc-500 mb-1">
-                  🎵 Metronome: {metronomeVolume}%
+                  🎸 Bass: {bassVolume}%
+                </label>
+                <input
+                  type="range"
+                  min="0"
+                  max="100"
+                  value={bassVolume}
+                  onChange={(e) => setBassVolume(parseInt(e.target.value))}
+                  className="w-full h-1.5 bg-zinc-700 rounded-lg appearance-none cursor-pointer accent-amber-500"
+                />
+              </div>
+              <div>
+                <label className="block text-xs text-zinc-500 mb-1">
+                  🎵 Click: {metronomeVolume}%
                 </label>
                 <input
                   type="range"
