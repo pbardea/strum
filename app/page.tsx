@@ -1065,6 +1065,7 @@ export default function Home() {
             >
               <option value="pluck">Acoustic Guitar</option>
               <option value="clean-guitar">Electric Guitar</option>
+              <option value="piano">Piano</option>
               <option value="synth">Synth</option>
             </select>
           </div>

@@ -8,7 +8,7 @@ export interface ChordEvent {
   quality?: ChordQuality; // Optional quality override (e.g., 'maj' for 3maj)
 }
 
-export type Instrument = 'synth' | 'clean-guitar' | 'pluck';
+export type Instrument = 'synth' | 'clean-guitar' | 'pluck' | 'piano';
 export type StrumFrequency = 1 | 2 | 4; // Strum every 1, 2, or 4 beats
 
 export class AudioEngine {
@@ -316,6 +316,50 @@ export class AudioEngine {
         acoustic.connect(acousticReverb);
         acousticReverb.connect(this.instrumentVolume);
         return { instrument: acoustic };
+        
+      case 'piano':
+        // Use piano samples
+        const pianoBaseUrl = 'https://nbrosowsky.github.io/tonejs-instruments/samples/piano/';
+        
+        this.samplerLoaded = false;
+        
+        const piano = new Tone.Sampler({
+          urls: {
+            'A1': 'A1.mp3',
+            'A2': 'A2.mp3',
+            'A3': 'A3.mp3',
+            'A4': 'A4.mp3',
+            'A5': 'A5.mp3',
+            'C2': 'C2.mp3',
+            'C3': 'C3.mp3',
+            'C4': 'C4.mp3',
+            'C5': 'C5.mp3',
+            'D#2': 'Ds2.mp3',
+            'D#3': 'Ds3.mp3',
+            'D#4': 'Ds4.mp3',
+            'F#2': 'Fs2.mp3',
+            'F#3': 'Fs3.mp3',
+            'F#4': 'Fs4.mp3',
+          },
+          baseUrl: pianoBaseUrl,
+          attack: 0,
+          release: 4,
+          onload: () => {
+            console.log('Piano samples loaded');
+            this.samplerLoaded = true;
+          },
+        });
+        
+        // Add subtle reverb for natural piano resonance
+        const pianoReverb = new Tone.Reverb({
+          decay: 2.5,
+          wet: 0.25,
+        });
+        pianoReverb.generate().then(() => {});
+        
+        piano.connect(pianoReverb);
+        pianoReverb.connect(this.instrumentVolume);
+        return { instrument: piano };
         
       case 'synth':
       default:
