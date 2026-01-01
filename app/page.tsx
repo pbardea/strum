@@ -1048,7 +1048,7 @@ export default function Home() {
             <input
               type="range"
               min="60"
-              max="200"
+              max="300"
               value={tempo}
               onChange={(e) => setTempo(parseInt(e.target.value))}
               className="w-full h-2 bg-zinc-700 rounded-lg appearance-none cursor-pointer accent-amber-500 mt-2"
